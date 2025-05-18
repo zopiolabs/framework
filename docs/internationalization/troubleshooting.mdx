@@ -1,0 +1,585 @@
+---
+title: 'Troubleshooting'
+description: 'Common issues and solutions for internationalization'
+icon: 'bug'
+---
+
+# Troubleshooting Internationalization
+
+This guide covers common issues you might encounter when using the internationalization package and provides solutions to resolve them.
+
+## Common Issues
+
+### Missing Translations
+
+#### Symptoms
+- Text appears in the default language (English) instead of the selected language
+- Translation keys appear in the UI instead of translated text
+- Console warnings about missing translations
+
+#### Solutions
+
+1. **Check if the translation key exists**
+
+   Verify that the translation key exists in the dictionary file for the current locale:
+
+   ```bash
+   # Check if the key exists in the dictionary file
+   grep -r "missingKey" dictionaries/
+   ```
+
+2. **Add missing translations**
+
+   Add the missing translation to the appropriate dictionary file:
+
+   ```json
+   // dictionaries/tr.json
+   {
+     "web": {
+       "header": {
+         "missingKey": "Eksik Anahtar Çevirisi"
+       }
+     }
+   }
+   ```
+
+3. **Use fallback for optional translations**
+
+   For translations that might not exist in all locales, use optional chaining and fallbacks:
+
+   ```tsx
+   // Use optional chaining and nullish coalescing
+   {dictionary.web.section?.optionalKey ?? dictionary.web.section.defaultKey}
+   ```
+
+4. **Run the translation script**
+
+   Use the built-in translation script to generate missing translations:
+
+   ```bash
+   npm run translate
+   ```
+
+### Middleware Not Working
+
+#### Symptoms
+- Locale is not detected correctly
+- URL-based locale switching doesn't work
+- Always redirects to the default locale
+
+#### Solutions
+
+1. **Check middleware configuration**
+
+   Ensure your middleware.ts file is correctly configured:
+
+   ```typescript
+   // middleware.ts
+   import { internationalizationMiddleware } from '@repo/internationalization/middleware';
+   import { NextRequest } from 'next/server';
+
+   export function middleware(request: NextRequest) {
+     return internationalizationMiddleware(request);
+   }
+
+   export const config = {
+     matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+   };
+   ```
+
+2. **Verify matcher pattern**
+
+   Make sure the matcher pattern is correct and doesn't exclude your routes:
+
+   ```typescript
+   // Correct matcher pattern that excludes only static assets and API routes
+   matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+   ```
+
+3. **Check for conflicting middleware**
+
+   If you have other middleware, make sure they don't conflict with the internationalization middleware:
+
+   ```typescript
+   // Combining multiple middleware
+   export function middleware(request: NextRequest) {
+     // First try internationalization middleware
+     const i18nResponse = internationalizationMiddleware(request);
+     if (i18nResponse) {
+       return i18nResponse;
+     }
+     
+     // If no response from i18n middleware, try other middleware
+     return otherMiddleware(request);
+   }
+   ```
+
+### Client Components Not Translating
+
+#### Symptoms
+- Server components show correct translations, but client components don't
+- Client components show translation keys instead of translated text
+- Errors related to the `useTranslation` hook
+
+#### Solutions
+
+1. **Check TranslationProvider setup**
+
+   Make sure your client components are wrapped with the TranslationProvider:
+
+   ```tsx
+   // In a Server Component
+   import { getDictionary } from '@repo/internationalization';
+   import { TranslationProvider } from '@repo/internationalization/TranslationProvider';
+   import ClientComponent from '@/components/ClientComponent';
+
+   export default async function ServerComponent({ params }: { params: { locale: string } }) {
+     const dictionary = await getDictionary(params.locale);
+     
+     return (
+       <TranslationProvider locale={params.locale} messages={dictionary}>
+         <ClientComponent />
+       </TranslationProvider>
+     );
+   }
+   ```
+
+2. **Verify namespace parameter**
+
+   Check that you're using the correct namespace in the `useTranslation` hook:
+
+   ```tsx
+   // In a Client Component
+   'use client';
+
+   import { useTranslation } from '@repo/internationalization/useTranslation';
+
+   export default function ClientComponent() {
+     // Make sure this namespace exists in your translations
+     const { t } = useTranslation('web.header');
+     
+     return <div>{t('home')}</div>;
+   }
+   ```
+
+3. **Check for React context issues**
+
+   If you're using multiple providers, make sure they're not interfering with each other:
+
+   ```tsx
+   // Correct nesting of providers
+   <ThemeProvider>
+     <TranslationProvider locale={locale} messages={dictionary}>
+       <AuthProvider>
+         <ClientComponent />
+       </AuthProvider>
+     </TranslationProvider>
+   </ThemeProvider>
+   ```
+
+### Language Switching Issues
+
+#### Symptoms
+- Clicking language switcher links doesn't change the language
+- URL changes but content doesn't update
+- Language switcher links go to 404 pages
+
+#### Solutions
+
+1. **Check language switcher implementation**
+
+   Make sure your language switcher correctly builds the URLs:
+
+   ```tsx
+   'use client';
+
+   import Link from 'next/link';
+   import { usePathname } from 'next/navigation';
+   import { i18nConfig } from '@repo/internationalization/i18nConfig';
+
+   export default function LanguageSwitcher() {
+     const pathname = usePathname();
+     
+     // Function to get the path for a different locale
+     const getLocalePath = (locale: string) => {
+       const segments = pathname.split('/');
+       const currentLocale = segments[1];
+       
+       // Check if the current path already has a locale
+       if (i18nConfig.locales.includes(currentLocale)) {
+         segments[1] = locale;
+         return segments.join('/');
+       }
+       
+       // If no locale in the path, add it
+       return `/${locale}${pathname}`;
+     };
+     
+     return (
+       <div className="language-switcher">
+         {i18nConfig.locales.map((locale) => (
+           <Link 
+             key={locale} 
+             href={getLocalePath(locale)}
+             className={pathname.startsWith(`/${locale}/`) ? 'active' : ''}
+           >
+             {locale.toUpperCase()}
+           </Link>
+         ))}
+       </div>
+     );
+   }
+   ```
+
+2. **Verify route structure**
+
+   Ensure your routes are properly structured with the locale parameter:
+
+   ```
+   app/
+   ├── [locale]/
+   │   ├── page.tsx
+   │   ├── about/
+   │   │   └── page.tsx
+   │   └── contact/
+   │       └── page.tsx
+   └── ...
+   ```
+
+3. **Check for caching issues**
+
+   If the URL changes but the content doesn't update, it might be a caching issue:
+
+   ```typescript
+   // Add cache control headers in your layout
+   export const dynamic = 'force-dynamic';
+   ```
+
+### Date and Number Formatting Issues
+
+#### Symptoms
+- Dates and numbers are not formatted according to the locale
+- Formatting is inconsistent across the application
+
+#### Solutions
+
+1. **Use the Intl API consistently**
+
+   Make sure you're using the Intl API for formatting:
+
+   ```tsx
+   const formatDate = (date: Date) => {
+     return new Intl.DateTimeFormat(locale, {
+       year: 'numeric',
+       month: 'long',
+       day: 'numeric'
+     }).format(date);
+   };
+   
+   const formatNumber = (num: number) => {
+     return new Intl.NumberFormat(locale, {
+       style: 'decimal',
+       minimumFractionDigits: 2,
+       maximumFractionDigits: 2
+     }).format(num);
+   };
+   ```
+
+2. **Create helper functions**
+
+   Create reusable helper functions for formatting:
+
+   ```typescript
+   // utils/formatting.ts
+   export function formatDate(date: Date, locale: string, options?: Intl.DateTimeFormatOptions) {
+     return new Intl.DateTimeFormat(locale, options).format(date);
+   }
+   
+   export function formatNumber(num: number, locale: string, options?: Intl.NumberFormatOptions) {
+     return new Intl.NumberFormat(locale, options).format(num);
+   }
+   
+   export function formatCurrency(amount: number, locale: string, currency: string) {
+     return new Intl.NumberFormat(locale, {
+       style: 'currency',
+       currency
+     }).format(amount);
+   }
+   ```
+
+3. **Handle locale-specific formats**
+
+   Be aware of locale-specific formats and handle them appropriately:
+
+   ```typescript
+   // Different date formats for different locales
+   const dateFormats: Record<string, Intl.DateTimeFormatOptions> = {
+     en: { month: 'short', day: 'numeric', year: 'numeric' }, // Apr 18, 2023
+     de: { day: 'numeric', month: 'numeric', year: 'numeric' }, // 18.04.2023
+     // Add more locale-specific formats as needed
+   };
+   
+   const formatDate = (date: Date) => {
+     const options = dateFormats[locale] || dateFormats.en;
+     return new Intl.DateTimeFormat(locale, options).format(date);
+   };
+   ```
+
+## Debugging Techniques
+
+### Console Logging
+
+Add console logs to track the flow of translations:
+
+```tsx
+// In a Server Component
+console.log('Loading dictionary for locale:', params.locale);
+const dictionary = await getDictionary(params.locale);
+console.log('Dictionary loaded:', Object.keys(dictionary));
+
+// In a Client Component
+'use client';
+
+import { useTranslation } from '@repo/internationalization/useTranslation';
+
+export default function DebugComponent() {
+  const { t } = useTranslation('web');
+  console.log('Translation function available:', !!t);
+  console.log('Sample translation:', t('header.home'));
+  
+  return <div>{t('header.home')}</div>;
+}
+```
+
+### Browser Developer Tools
+
+Use browser developer tools to inspect the React component tree and context values:
+
+1. Open your browser's developer tools (F12 or right-click > Inspect)
+2. Go to the Components tab (in React DevTools)
+3. Find the TranslationProvider component
+4. Check its props (locale and messages)
+5. Look for any errors in the console
+
+### React DevTools
+
+Install React DevTools for more detailed debugging:
+
+```bash
+# Install React DevTools
+npm install -g react-devtools
+```
+
+Then use it to inspect your components:
+
+```bash
+# Start React DevTools
+react-devtools
+```
+
+## Advanced Troubleshooting
+
+### Missing or Incorrect TypeScript Types
+
+#### Symptoms
+- TypeScript errors related to translation types
+- No autocomplete for translation keys
+
+#### Solutions
+
+1. **Define proper types for your translations**
+
+   Create a type definition for your translations:
+
+   ```typescript
+   // types/translations.ts
+   export type Dictionary = {
+     web: {
+       header: {
+         home: string;
+         about: string;
+         contact: string;
+         // Add more keys as needed
+       };
+       // Add more sections as needed
+     };
+     // Add more namespaces as needed
+   };
+   ```
+
+2. **Use type assertions with the useTranslation hook**
+
+   ```tsx
+   import { useTranslation } from '@repo/internationalization/useTranslation';
+   import type { Dictionary } from '@/types/translations';
+
+   // Use type assertion
+   const { t } = useTranslation<Dictionary['web']['header']>('web.header');
+   ```
+
+### Performance Issues
+
+#### Symptoms
+- Slow page loads when switching languages
+- High memory usage
+
+#### Solutions
+
+1. **Optimize dictionary size**
+
+   Split large dictionaries into smaller chunks:
+
+   ```typescript
+   // Load only the translations needed for this page
+   const commonDictionary = await getDictionary(locale, 'common');
+   const pageDictionary = await getDictionary(locale, 'home');
+   ```
+
+2. **Use code splitting**
+
+   Load translations only when needed:
+
+   ```tsx
+   // Use dynamic imports for translations
+   const HomePageContent = dynamic(() => import('@/components/HomePageContent'), {
+     loading: () => <LoadingSpinner />
+   });
+   ```
+
+3. **Memoize translation functions**
+
+   Use memoization to prevent unnecessary re-renders:
+
+   ```tsx
+   const memoizedTranslation = useMemo(() => {
+     return {
+       title: t('title'),
+       description: t('description'),
+       // Add more translations as needed
+     };
+   }, [t]);
+   ```
+
+## Common Error Messages and Solutions
+
+<AccordionGroup>
+  <Accordion title="Error: Cannot find module '@repo/internationalization'">
+    **Solution:**
+    
+    Make sure the package is correctly installed and included in your dependencies:
+    
+    ```json
+    // package.json
+    {
+      "dependencies": {
+        "@repo/internationalization": "workspace:*"
+      }
+    }
+    ```
+    
+    Then run:
+    
+    ```bash
+    npm install
+    ```
+  </Accordion>
+  
+  <Accordion title="Error: Translation key 'x' does not exist">
+    **Solution:**
+    
+    Add the missing translation key to all locale files:
+    
+    ```json
+    // dictionaries/en.json
+    {
+      "web": {
+        "section": {
+          "missingKey": "Translation for missing key"
+        }
+      }
+    }
+    ```
+    
+    Or use optional chaining and fallbacks:
+    
+    ```tsx
+    {t('section.missingKey') ?? t('section.defaultKey')}
+    ```
+  </Accordion>
+  
+  <Accordion title="Error: useTranslation must be used within a TranslationProvider">
+    **Solution:**
+    
+    Make sure your client component is wrapped with the TranslationProvider:
+    
+    ```tsx
+    // In a Server Component
+    <TranslationProvider locale={params.locale} messages={dictionary}>
+      <ClientComponent />
+    </TranslationProvider>
+    ```
+    
+    Check that you're not using the hook in a Server Component:
+    
+    ```tsx
+    // This will cause an error in a Server Component
+    // Only use useTranslation in Client Components with 'use client' directive
+    const { t } = useTranslation('web');
+    ```
+  </Accordion>
+  
+  <Accordion title="Error: Failed to load dictionary for locale: [locale]">
+    **Solution:**
+    
+    Check that the dictionary file exists for the specified locale:
+    
+    ```bash
+    # Check if the file exists
+    ls -la dictionaries/[locale].json
+    ```
+    
+    If it doesn't exist, create it:
+    
+    ```bash
+    # Create a new dictionary file by copying the English one
+    cp dictionaries/en.json dictionaries/[locale].json
+    ```
+    
+    Then translate the content or run the translation script:
+    
+    ```bash
+    npm run translate
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Getting Help
+
+If you're still experiencing issues after trying the solutions in this guide, you can:
+
+1. **Check the documentation**
+   
+   Review the other internationalization documentation pages for more information.
+
+2. **Search for similar issues**
+   
+   Look for similar issues in the project's issue tracker or discussion forums.
+
+3. **Ask for help**
+   
+   Reach out to the team for assistance, providing:
+   - A clear description of the issue
+   - Steps to reproduce the problem
+   - Error messages (if any)
+   - Code samples demonstrating the issue
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="code" href="/api-reference/internationalization">
+    Complete API reference for the internationalization package
+  </Card>
+  <Card title="Back to Introduction" icon="arrow-left" href="/internationalization/introduction">
+    Return to the internationalization introduction
+  </Card>
+</CardGroup>

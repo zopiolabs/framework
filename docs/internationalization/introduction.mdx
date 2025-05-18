@@ -1,0 +1,121 @@
+---
+title: 'Internationalization'
+description: 'Add multi-language support to your application'
+icon: 'language'
+---
+
+# Internationalization
+
+The internationalization package provides comprehensive multi-language support for Next.js applications in the project. It combines multiple internationalization libraries to deliver a complete solution for creating multilingual applications.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Multiple Locale Support" icon="globe">
+    Support for English, Turkish, Spanish, and German with an easy way to add more languages
+  </Card>
+  <Card title="Automatic Locale Detection" icon="magnifying-glass">
+    Detects user's preferred language from browser settings
+  </Card>
+  <Card title="URL-based Locale Switching" icon="link">
+    Supports locale prefixes in URLs (e.g., `/en/about`, `/tr/about`)
+  </Card>
+  <Card title="Server and Client Components" icon="server">
+    Works seamlessly with both server and client components
+  </Card>
+  <Card title="Type-Safe Translations" icon="shield-check">
+    Provides TypeScript types for translations
+  </Card>
+  <Card title="Fallback Mechanism" icon="arrow-path">
+    Falls back to English when translations are missing
+  </Card>
+</CardGroup>
+
+## Architecture
+
+The internationalization package uses a combination of:
+
+- **[next-international](https://github.com/QuiiBz/next-international)** - For middleware and URL-based locale switching
+- **[next-intl](https://next-intl.dev/)** - For client-side translations
+- **[@formatjs/intl-localematcher](https://formatjs.io/docs/intl-localematcher/)** - For locale detection based on browser preferences
+- **[Languine](https://github.com/inlang/languine)** - For translation management
+
+## Getting Started
+
+To use the internationalization package in your application:
+
+```bash
+# Add the package to your application's dependencies
+npm install @repo/internationalization
+```
+
+Then, set up the middleware in your application:
+
+```typescript
+// middleware.ts
+import { internationalizationMiddleware } from '@repo/internationalization/middleware';
+import { NextRequest } from 'next/server';
+
+export function middleware(request: NextRequest) {
+  return internationalizationMiddleware(request);
+}
+
+export const config = {
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+};
+```
+
+## Basic Usage
+
+### In Server Components
+
+```tsx
+import { getDictionary } from '@repo/internationalization';
+
+export default async function Page({ params }: { params: { locale: string } }) {
+  const dictionary = await getDictionary(params.locale);
+  
+  return (
+    <div>
+      <h1>{dictionary.web.header.home}</h1>
+      <p>{dictionary.web.home.meta.description}</p>
+    </div>
+  );
+}
+```
+
+### In Client Components
+
+```tsx
+'use client';
+
+import { useTranslation } from '@repo/internationalization/useTranslation';
+
+export default function ClientComponent() {
+  const { t } = useTranslation('web');
+  
+  return (
+    <div>
+      <h1>{t('header.home')}</h1>
+      <p>{t('header.product.description')}</p>
+    </div>
+  );
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Setup Guide" icon="gear" href="/internationalization/setup">
+    Learn how to set up internationalization in your application
+  </Card>
+  <Card title="Server Components" icon="server" href="/internationalization/server-components">
+    Working with translations in server components
+  </Card>
+  <Card title="Client Components" icon="browser" href="/internationalization/client-components">
+    Working with translations in client components
+  </Card>
+  <Card title="Adding New Languages" icon="plus" href="/internationalization/adding-languages">
+    How to add support for new languages
+  </Card>
+</CardGroup>

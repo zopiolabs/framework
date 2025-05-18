@@ -1,0 +1,522 @@
+---
+title: 'Advanced Usage'
+description: 'Advanced internationalization techniques'
+icon: 'code'
+---
+
+# Advanced Internationalization Techniques
+
+This guide covers advanced techniques for using the internationalization package in your Next.js application.
+
+## Handling Complex Translations
+
+### Nested Namespaces
+
+You can use nested namespaces to organize your translations and access them efficiently:
+
+```tsx
+// Access deeply nested translations
+const { t } = useTranslation('web.products.categories.electronics');
+
+// Now you can use shorter keys
+t('title') // Instead of t('web.products.categories.electronics.title')
+```
+
+### Rich Text Formatting
+
+For translations that include HTML or formatting:
+
+```tsx
+// In your translation file:
+// {
+//   "welcome": "Welcome to <strong>our website</strong>!"
+// }
+
+// In your component:
+'use client';
+
+import { useTranslation } from '@repo/internationalization/useTranslation';
+import parse from 'html-react-parser';
+
+export default function WelcomeMessage() {
+  const { t } = useTranslation('web.home');
+  
+  // Parse HTML in translation
+  const welcomeMessage = parse(t('welcome'));
+  
+  return <div className="welcome">{welcomeMessage}</div>;
+}
+```
+
+<Warning>
+Be careful with HTML in translations to avoid XSS vulnerabilities. Consider using a safer alternative like Markdown.
+</Warning>
+
+## Date and Number Formatting
+
+### Advanced Date Formatting
+
+Use the Intl API for consistent date formatting across locales:
+
+```tsx
+'use client';
+
+import { useTranslation } from '@repo/internationalization/useTranslation';
+import { useParams } from 'next/navigation';
+
+export default function EventDate({ date }: { date: Date }) {
+  const { t } = useTranslation('web.events');
+  const { locale } = useParams();
+  
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat(locale as string, {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      timeZoneName: 'short'
+    }).format(date);
+  };
+  
+  return (
+    <div className="event-date">
+      <span>{t('startsAt')}</span>
+      <time dateTime={date.toISOString()}>{formatDate(date)}</time>
+    </div>
+  );
+}
+```
+
+### Currency Formatting
+
+Format currency values according to the user's locale:
+
+```tsx
+'use client';
+
+import { useTranslation } from '@repo/internationalization/useTranslation';
+import { useParams } from 'next/navigation';
+
+export default function ProductPrice({ price }: { price: number }) {
+  const { t } = useTranslation('web.products');
+  const { locale } = useParams();
+  
+  // Map locale to currency code
+  const getCurrencyCode = (locale: string) => {
+    const currencyMap: Record<string, string> = {
+      en: 'USD',
+      tr: 'TRY',
+      es: 'EUR',
+      de: 'EUR',
+      fr: 'EUR'
+    };
+    
+    return currencyMap[locale] || 'USD';
+  };
+  
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat(locale as string, {
+      style: 'currency',
+      currency: getCurrencyCode(locale as string)
+    }).format(amount);
+  };
+  
+  return (
+    <div className="product-price">
+      <span>{t('price')}</span>
+      <strong>{formatCurrency(price)}</strong>
+    </div>
+  );
+}
+```
+
+## Optimizing Performance
+
+### Lazy Loading Translations
+
+For large applications, you can lazy load translations to improve initial load time:
+
+```tsx
+// app/[locale]/layout.tsx
+import { Suspense } from 'react';
+import { getDictionary } from '@repo/internationalization';
+import LoadingFallback from '@/components/LoadingFallback';
+
+export default async function Layout({ 
+  children, 
+  params 
+}: { 
+  children: React.ReactNode;
+  params: { locale: string };
+}) {
+  const dictionary = await getDictionary(params.locale);
+  
+  return (
+    <html lang={params.locale}>
+      <body>
+        <header>
+          {/* Header content */}
+        </header>
+        <main>
+          <Suspense fallback={<LoadingFallback />}>
+            {children}
+          </Suspense>
+        </main>
+        <footer>
+          {/* Footer content */}
+        </footer>
+      </body>
+    </html>
+  );
+}
+```
+
+### Memoizing Translations
+
+Use memoization to prevent unnecessary re-renders:
+
+```tsx
+'use client';
+
+import { useTranslation } from '@repo/internationalization/useTranslation';
+import { useMemo } from 'react';
+
+export default function MemoizedComponent() {
+  const { t } = useTranslation('web.common');
+  
+  // Memoize expensive translation operations
+  const translatedItems = useMemo(() => {
+    return Array.from({ length: 100 }, (_, i) => ({
+      id: i,
+      title: t(`items.${i}.title`),
+      description: t(`items.${i}.description`)
+    }));
+  }, [t]);
+  
+  return (
+    <div className="items-list">
+      {translatedItems.map(item => (
+        <div key={item.id} className="item">
+          <h3>{item.title}</h3>
+          <p>{item.description}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+## SEO Optimization
+
+### Hreflang Tags
+
+Add hreflang tags to improve SEO for multilingual content:
+
+```tsx
+// app/[locale]/layout.tsx
+import { getDictionary } from '@repo/internationalization';
+import { i18nConfig } from '@repo/internationalization/i18nConfig';
+import { Metadata } from 'next';
+
+export async function generateMetadata({ 
+  params 
+}: { 
+  params: { locale: string } 
+}): Promise<Metadata> {
+  const dictionary = await getDictionary(params.locale);
+  
+  return {
+    title: dictionary.web.home.meta.title,
+    description: dictionary.web.home.meta.description,
+    alternates: {
+      languages: Object.fromEntries(
+        i18nConfig.locales.map(locale => [
+          locale,
+          `/${locale}${params.locale === i18nConfig.defaultLocale ? '' : '/'}`
+        ])
+      )
+    }
+  };
+}
+
+export default async function Layout({ children, params }) {
+  // Layout implementation
+}
+```
+
+### Localized Sitemaps
+
+Create localized sitemaps for better search engine indexing:
+
+```tsx
+// app/sitemap.ts
+import { i18nConfig } from '@repo/internationalization/i18nConfig';
+
+export default async function sitemap() {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://example.com';
+  
+  // Define your routes
+  const routes = [
+    '',
+    '/about',
+    '/contact',
+    '/blog'
+  ];
+  
+  // Generate entries for all locales
+  const entries = i18nConfig.locales.flatMap(locale => 
+    routes.map(route => ({
+      url: `${baseUrl}/${locale}${route}`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: route === '' ? 1 : 0.8,
+      alternateRefs: i18nConfig.locales
+        .filter(l => l !== locale)
+        .map(l => ({
+          href: `${baseUrl}/${l}${route}`,
+          hreflang: l
+        }))
+    }))
+  );
+  
+  return entries;
+}
+```
+
+## Advanced Routing
+
+### Locale-Aware API Routes
+
+Create API routes that respect the user's locale:
+
+```tsx
+// app/api/[locale]/data/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { getDictionary } from '@repo/internationalization';
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { locale: string } }
+) {
+  const dictionary = await getDictionary(params.locale);
+  
+  // Get data based on locale
+  const data = await fetchLocalizedData(params.locale);
+  
+  return NextResponse.json({
+    title: dictionary.web.api.dataTitle,
+    description: dictionary.web.api.dataDescription,
+    items: data.map(item => ({
+      ...item,
+      // Translate category names
+      category: dictionary.web.categories[item.categoryKey] || item.categoryKey
+    }))
+  });
+}
+```
+
+### Dynamic Route Generation
+
+Generate routes for all supported locales:
+
+```tsx
+// app/[locale]/blog/[slug]/page.tsx
+import { getDictionary } from '@repo/internationalization';
+import { i18nConfig } from '@repo/internationalization/i18nConfig';
+
+// Generate static params for all locales
+export async function generateStaticParams() {
+  const posts = await fetchAllBlogPosts();
+  
+  return i18nConfig.locales.flatMap(locale => 
+    posts.map(post => ({
+      locale,
+      slug: post.slug
+    }))
+  );
+}
+
+export default async function BlogPost({ 
+  params 
+}: { 
+  params: { locale: string; slug: string } 
+}) {
+  const dictionary = await getDictionary(params.locale);
+  const post = await fetchBlogPost(params.slug, params.locale);
+  
+  return (
+    <article>
+      <h1>{post.title}</h1>
+      <div className="content">{post.content}</div>
+    </article>
+  );
+}
+```
+
+## Testing Internationalization
+
+### Unit Testing Translations
+
+Test that your components display the correct translations:
+
+```tsx
+// __tests__/components/Header.test.tsx
+import { render, screen } from '@testing-library/react';
+import Header from '@/components/Header';
+import { TranslationProvider } from '@repo/internationalization/TranslationProvider';
+
+// Mock dictionaries
+const mockEnDictionary = {
+  web: {
+    header: {
+      home: 'Home',
+      about: 'About',
+      contact: 'Contact'
+    }
+  }
+};
+
+const mockTrDictionary = {
+  web: {
+    header: {
+      home: 'Ana Sayfa',
+      about: 'Hakkımızda',
+      contact: 'İletişim'
+    }
+  }
+};
+
+describe('Header Component', () => {
+  test('renders English navigation', () => {
+    render(
+      <TranslationProvider locale="en" messages={mockEnDictionary}>
+        <Header />
+      </TranslationProvider>
+    );
+    
+    expect(screen.getByText('Home')).toBeInTheDocument();
+    expect(screen.getByText('About')).toBeInTheDocument();
+    expect(screen.getByText('Contact')).toBeInTheDocument();
+  });
+  
+  test('renders Turkish navigation', () => {
+    render(
+      <TranslationProvider locale="tr" messages={mockTrDictionary}>
+        <Header />
+      </TranslationProvider>
+    );
+    
+    expect(screen.getByText('Ana Sayfa')).toBeInTheDocument();
+    expect(screen.getByText('Hakkımızda')).toBeInTheDocument();
+    expect(screen.getByText('İletişim')).toBeInTheDocument();
+  });
+});
+```
+
+### E2E Testing with Different Locales
+
+Test the full user experience with different locales:
+
+```typescript
+// cypress/e2e/internationalization.cy.ts
+describe('Internationalization', () => {
+  it('should display content in English by default', () => {
+    cy.visit('/');
+    cy.get('h1').should('contain', 'Transform Your Business Operations Today');
+    cy.get('nav').should('contain', 'Home');
+  });
+  
+  it('should display content in Turkish when visiting /tr route', () => {
+    cy.visit('/tr');
+    cy.get('h1').should('contain', 'İşletme Operasyonlarınızı Bugün Dönüştürün');
+    cy.get('nav').should('contain', 'Ana Sayfa');
+  });
+  
+  it('should allow switching languages', () => {
+    cy.visit('/en');
+    cy.get('.language-switcher').contains('Türkçe').click();
+    cy.url().should('include', '/tr');
+    cy.get('h1').should('contain', 'İşletme Operasyonlarınızı Bugün Dönüştürün');
+  });
+});
+```
+
+## Integration with Third-Party Services
+
+### Integrating with Translation Services
+
+Automate translation updates using external translation services:
+
+```typescript
+// scripts/update-translations.ts
+import fs from 'fs';
+import path from 'path';
+import { TranslationService } from 'some-translation-api';
+
+async function updateTranslations() {
+  // Read source translations
+  const sourcePath = path.join(process.cwd(), 'dictionaries/en.json');
+  const sourceTranslations = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
+  
+  // Get target locales
+  const config = JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), 'languine.json'), 'utf8')
+  );
+  const targetLocales = config.locale.targets;
+  
+  // Initialize translation service
+  const translationService = new TranslationService({
+    apiKey: process.env.TRANSLATION_API_KEY
+  });
+  
+  // Update each target locale
+  for (const locale of targetLocales) {
+    console.log(`Updating translations for ${locale}...`);
+    
+    const targetPath = path.join(process.cwd(), `dictionaries/${locale}.json`);
+    let targetTranslations = {};
+    
+    // Load existing translations if available
+    if (fs.existsSync(targetPath)) {
+      targetTranslations = JSON.parse(fs.readFileSync(targetPath, 'utf8'));
+    }
+    
+    // Find missing or updated translations
+    const updatedTranslations = await translateMissingKeys(
+      sourceTranslations,
+      targetTranslations,
+      locale,
+      translationService
+    );
+    
+    // Write updated translations
+    fs.writeFileSync(
+      targetPath,
+      JSON.stringify(updatedTranslations, null, 2),
+      'utf8'
+    );
+    
+    console.log(`Updated translations for ${locale}`);
+  }
+}
+
+// Helper function to translate missing keys
+async function translateMissingKeys(source, target, locale, service) {
+  // Implementation details
+}
+
+updateTranslations().catch(console.error);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Troubleshooting" icon="bug" href="/internationalization/troubleshooting">
+    Common issues and solutions
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/internationalization">
+    Complete API reference for the internationalization package
+  </Card>
+</CardGroup>

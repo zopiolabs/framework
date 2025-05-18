@@ -1,0 +1,235 @@
+---
+title: 'Setup Guide'
+description: 'How to set up internationalization in your application'
+icon: 'gear'
+---
+
+# Setting Up Internationalization
+
+This guide walks you through the process of setting up internationalization in your Next.js application using the `@repo/internationalization` package.
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- A Next.js application using the App Router
+- Access to the `@repo/internationalization` package
+
+## Installation
+
+Add the internationalization package to your application's dependencies:
+
+```json
+// package.json
+{
+  "dependencies": {
+    "@repo/internationalization": "workspace:*"
+  }
+}
+```
+
+Then run:
+
+```bash
+npm install
+```
+
+## Configuration Steps
+
+### 1. Set Up Middleware
+
+Create or update your `middleware.ts` file to include the internationalization middleware:
+
+```typescript
+// middleware.ts
+import { internationalizationMiddleware } from '@repo/internationalization/middleware';
+import { NextRequest } from 'next/server';
+
+export function middleware(request: NextRequest) {
+  return internationalizationMiddleware(request);
+}
+
+export const config = {
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+};
+```
+
+<Tip>
+The matcher pattern excludes static assets and API routes from the internationalization middleware.
+</Tip>
+
+### 2. Create Locale-Based Routes
+
+Structure your application routes to include the locale parameter:
+
+```
+app/
+├── [locale]/
+│   ├── page.tsx
+│   ├── about/
+│   │   └── page.tsx
+│   ├── contact/
+│   │   └── page.tsx
+│   └── layout.tsx
+└── ...
+```
+
+### 3. Create a Root Layout
+
+In your `app/[locale]/layout.tsx` file, set up the root layout with internationalization support:
+
+```tsx
+// app/[locale]/layout.tsx
+import { getDictionary } from '@repo/internationalization';
+import type { ReactNode } from 'react';
+
+type RootLayoutProperties = {
+  readonly children: ReactNode;
+  readonly params: {
+    locale: string;
+  };
+};
+
+const RootLayout = async ({ children, params }: RootLayoutProperties) => {
+  const { locale } = params;
+  const dictionary = await getDictionary(locale);
+
+  return (
+    <html lang={locale}>
+      <body>
+        <header>
+          {/* Use dictionary entries for navigation */}
+          <nav>
+            <a href={`/${locale}`}>{dictionary.web.header.home}</a>
+            <a href={`/${locale}/about`}>{dictionary.web.header.about}</a>
+            <a href={`/${locale}/contact`}>{dictionary.web.header.contact}</a>
+          </nav>
+        </header>
+        <main>{children}</main>
+        <footer>
+          {/* Footer content */}
+        </footer>
+      </body>
+    </html>
+  );
+};
+
+export default RootLayout;
+```
+
+### 4. Set Up Pages with Translations
+
+Create your pages with internationalization support:
+
+```tsx
+// app/[locale]/page.tsx
+import { getDictionary } from '@repo/internationalization';
+
+export default async function HomePage({ params }: { params: { locale: string } }) {
+  const dictionary = await getDictionary(params.locale);
+  
+  return (
+    <div>
+      <h1>{dictionary.web.home.meta.title}</h1>
+      <p>{dictionary.web.home.meta.description}</p>
+      
+      {/* More content using dictionary entries */}
+    </div>
+  );
+}
+```
+
+### 5. Set Up Client Components (Optional)
+
+If you need translations in client components, create a wrapper for the client component:
+
+```tsx
+// app/[locale]/contact/page.tsx
+import { getDictionary } from '@repo/internationalization';
+import { TranslationProvider } from '@repo/internationalization/TranslationProvider';
+import ContactForm from '@/components/ContactForm'; // Client component
+
+export default async function ContactPage({ params }: { params: { locale: string } }) {
+  const dictionary = await getDictionary(params.locale);
+  
+  return (
+    <div>
+      <h1>{dictionary.web.contact.title}</h1>
+      <TranslationProvider locale={params.locale} messages={dictionary}>
+        <ContactForm />
+      </TranslationProvider>
+    </div>
+  );
+}
+```
+
+Then in your client component:
+
+```tsx
+// components/ContactForm.tsx
+'use client';
+
+import { useTranslation } from '@repo/internationalization/useTranslation';
+
+export default function ContactForm() {
+  const { t } = useTranslation('web.contact.form');
+  
+  return (
+    <form>
+      <label>{t('name')}</label>
+      <input type="text" />
+      
+      <label>{t('email')}</label>
+      <input type="email" />
+      
+      <button type="submit">{t('submit')}</button>
+    </form>
+  );
+}
+```
+
+## Verification
+
+To verify that internationalization is working correctly:
+
+1. Start your development server:
+   ```bash
+   npm run dev
+   ```
+
+2. Visit your application with different locale paths:
+   - `http://localhost:3000/en` for English
+   - `http://localhost:3000/tr` for Turkish
+   - `http://localhost:3000/es` for Spanish
+   - `http://localhost:3000/de` for German
+
+3. Check that the content is displayed in the correct language based on the URL path.
+
+## Troubleshooting
+
+### Missing Translations
+
+If you see untranslated content or errors related to missing translations:
+
+1. Check that the locale in the URL matches one of the supported locales.
+2. Verify that the translation key exists in the dictionary file for the current locale.
+3. Check the browser console for any error messages related to translations.
+
+### Middleware Not Working
+
+If the internationalization middleware is not working:
+
+1. Make sure the matcher pattern in your middleware configuration is correct.
+2. Check that the middleware is being applied to the correct routes.
+3. Verify that the middleware is being exported correctly from your `middleware.ts` file.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Server Components" icon="server" href="/internationalization/server-components">
+    Learn how to use translations in server components
+  </Card>
+  <Card title="Client Components" icon="browser" href="/internationalization/client-components">
+    Learn how to use translations in client components
+  </Card>
+</CardGroup>

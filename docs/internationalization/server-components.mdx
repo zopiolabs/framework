@@ -1,0 +1,292 @@
+---
+title: 'Server Components'
+description: 'Working with translations in server components'
+icon: 'server'
+---
+
+# Server Components
+
+This guide explains how to use the internationalization package with React Server Components in your Next.js application.
+
+## Overview
+
+Server Components are rendered on the server and can directly access server-side resources. With the internationalization package, you can load translations directly in your Server Components without additional client-side JavaScript.
+
+## Loading Translations
+
+To use translations in a Server Component, import the `getDictionary` function and use it to load the appropriate dictionary based on the locale:
+
+```tsx
+import { getDictionary } from '@repo/internationalization';
+
+export default async function ServerComponent({ params }: { params: { locale: string } }) {
+  const dictionary = await getDictionary(params.locale);
+  
+  return (
+    <div>
+      <h1>{dictionary.web.header.home}</h1>
+      <p>{dictionary.web.home.meta.description}</p>
+    </div>
+  );
+}
+```
+
+The `getDictionary` function:
+1. Takes a locale string as input
+2. Loads the corresponding dictionary file
+3. Returns the dictionary object with all translations for that locale
+
+## Accessing Nested Translations
+
+Dictionary files are structured as nested objects. You can access nested translations using dot notation:
+
+```tsx
+// Access nested translations
+<h2>{dictionary.web.home.features.title}</h2>
+<p>{dictionary.web.home.features.description}</p>
+```
+
+## Working with Arrays
+
+If your translations include arrays, you can map over them to render multiple elements:
+
+```tsx
+// Translation dictionary structure:
+// {
+//   "web": {
+//     "home": {
+//       "features": {
+//         "items": [
+//           { "title": "Feature 1", "description": "Description 1" },
+//           { "title": "Feature 2", "description": "Description 2" }
+//         ]
+//       }
+//     }
+//   }
+// }
+
+{dictionary.web.home.features.items.map((feature, index) => (
+  <div key={index} className="feature">
+    <h3>{feature.title}</h3>
+    <p>{feature.description}</p>
+  </div>
+))}
+```
+
+## Handling Dynamic Content
+
+You can combine translations with dynamic content:
+
+```tsx
+// Assuming the translation has a placeholder: "Welcome, {name}!"
+<p>{dictionary.web.greeting.replace('{name}', user.name)}</p>
+
+// For more complex replacements, you can use a helper function
+function formatMessage(template: string, values: Record<string, string>) {
+  return template.replace(/{(\w+)}/g, (_, key) => values[key] || '');
+}
+
+<p>
+  {formatMessage(dictionary.web.lastLogin, { 
+    date: new Date().toLocaleDateString(params.locale),
+    time: new Date().toLocaleTimeString(params.locale)
+  })}
+</p>
+```
+
+## Fallback Handling
+
+The `getDictionary` function includes built-in fallback handling. If a translation is not available in the requested locale, it will fall back to English:
+
+```tsx
+// This will use the English translation if the Spanish one doesn't exist
+const dictionary = await getDictionary('es');
+```
+
+You can also implement your own fallback logic for specific cases:
+
+```tsx
+const title = dictionary.web.specialPage?.title || dictionary.web.defaultPage.title;
+```
+
+## Metadata and SEO
+
+You can use translations for page metadata to improve SEO:
+
+```tsx
+import { getDictionary } from '@repo/internationalization';
+import { Metadata } from 'next';
+
+export async function generateMetadata({ 
+  params 
+}: { 
+  params: { locale: string } 
+}): Promise<Metadata> {
+  const dictionary = await getDictionary(params.locale);
+  
+  return {
+    title: dictionary.web.home.meta.title,
+    description: dictionary.web.home.meta.description,
+    openGraph: {
+      title: dictionary.web.home.meta.title,
+      description: dictionary.web.home.meta.description,
+      locale: params.locale,
+    },
+  };
+}
+
+export default async function HomePage({ params }: { params: { locale: string } }) {
+  const dictionary = await getDictionary(params.locale);
+  
+  return (
+    <div>
+      <h1>{dictionary.web.home.meta.title}</h1>
+      <p>{dictionary.web.home.meta.description}</p>
+    </div>
+  );
+}
+```
+
+## Passing Translations to Client Components
+
+To use translations in Client Components, you need to pass them from a Server Component:
+
+```tsx
+import { getDictionary } from '@repo/internationalization';
+import { TranslationProvider } from '@repo/internationalization/TranslationProvider';
+import ClientComponent from '@/components/ClientComponent';
+
+export default async function ServerComponent({ params }: { params: { locale: string } }) {
+  const dictionary = await getDictionary(params.locale);
+  
+  return (
+    <div>
+      <h1>{dictionary.web.header.home}</h1>
+      
+      {/* Pass translations to Client Component */}
+      <TranslationProvider locale={params.locale} messages={dictionary}>
+        <ClientComponent />
+      </TranslationProvider>
+    </div>
+  );
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Organize Translations by Feature">
+    Structure your translation files by feature or page to make them easier to manage:
+    ```json
+    {
+      "web": {
+        "header": { ... },
+        "home": { ... },
+        "about": { ... },
+        "contact": { ... }
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Use TypeScript for Type Safety">
+    Define types for your translations to get better IDE support and catch errors early:
+    ```typescript
+    import type { Dictionary } from '@repo/internationalization';
+    
+    // Now you get type checking for dictionary access
+    const dictionary: Dictionary = await getDictionary(locale);
+    ```
+  </Accordion>
+  
+  <Accordion title="Avoid String Concatenation">
+    Instead of concatenating strings:
+    ```tsx
+    {/* Don't do this */}
+    <p>{dictionary.web.greeting} {user.name}!</p>
+    ```
+    
+    Use placeholders:
+    ```tsx
+    {/* Do this instead */}
+    <p>{dictionary.web.greeting.replace('{name}', user.name)}</p>
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Examples
+
+### Basic Page with Translations
+
+```tsx
+// app/[locale]/about/page.tsx
+import { getDictionary } from '@repo/internationalization';
+
+export default async function AboutPage({ params }: { params: { locale: string } }) {
+  const dictionary = await getDictionary(params.locale);
+  
+  return (
+    <div className="about-page">
+      <h1>{dictionary.web.about.title}</h1>
+      <p>{dictionary.web.about.description}</p>
+      
+      <section className="team">
+        <h2>{dictionary.web.about.team.title}</h2>
+        <div className="team-members">
+          {dictionary.web.about.team.members.map((member, index) => (
+            <div key={index} className="team-member">
+              <h3>{member.name}</h3>
+              <p>{member.role}</p>
+              <p>{member.bio}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+```
+
+### Dynamic Routes with Translations
+
+```tsx
+// app/[locale]/blog/[slug]/page.tsx
+import { getDictionary } from '@repo/internationalization';
+
+export default async function BlogPost({ 
+  params 
+}: { 
+  params: { locale: string; slug: string } 
+}) {
+  const dictionary = await getDictionary(params.locale);
+  const post = await fetchBlogPost(params.slug);
+  
+  return (
+    <article>
+      <h1>{post.title}</h1>
+      <p className="date">
+        {dictionary.web.blog.publishedOn.replace('{date}', 
+          new Date(post.date).toLocaleDateString(params.locale)
+        )}
+      </p>
+      <div className="content">{post.content}</div>
+      
+      <div className="related-posts">
+        <h2>{dictionary.web.blog.relatedPosts}</h2>
+        {/* Related posts content */}
+      </div>
+    </article>
+  );
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Client Components" icon="browser" href="/internationalization/client-components">
+    Learn how to use translations in client components
+  </Card>
+  <Card title="Adding Languages" icon="plus" href="/internationalization/adding-languages">
+    How to add support for new languages
+  </Card>
+</CardGroup>

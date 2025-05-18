@@ -67,11 +67,26 @@
   "navigation": [
     {
       "group": "Introduction",
+      "icon": "book-open",
       "pages": ["overview", "philosophy", "structure", "updates", "faq"]
     },
     {
       "group": "Setup",
+      "icon": "wrench",
       "pages": ["setup/prerequisites", "setup/installation", "setup/env"]
+    },
+    {
+      "group": "Internationalization",
+      "icon": "language",
+      "pages": [
+        "internationalization/introduction",
+        "internationalization/setup",
+        "internationalization/server-components",
+        "internationalization/client-components",
+        "internationalization/adding-languages",
+        "internationalization/advanced-usage",
+        "internationalization/troubleshooting"
+      ]
     },
     {
       "group": "",
@@ -91,10 +106,12 @@
         "packages/ai",
         {
           "group": "Analytics",
+          "icon": "chart-mixed",
           "pages": ["packages/analytics/web", "packages/analytics/product"]
         },
         {
           "group": "Auth",
+          "icon": "lock",
           "pages": ["packages/authentication", "packages/authorization-rbac", "packages/authorization-abac", "packages/authorization-runner", "packages/authorization-hooks", "packages/authorization-log"]
         },
         "packages/cms",
@@ -103,6 +120,7 @@
         "packages/database",
         {
           "group": "Design System",
+          "icon": "palette",
           "pages": [
             "packages/design-system/colors",
             "packages/design-system/components",
@@ -117,6 +135,7 @@
         "packages/internationalization",
         {
           "group": "Observability",
+          "icon": "eye",
           "pages": [
             "packages/observability/error-capture",
             "packages/observability/debugging",
@@ -126,6 +145,7 @@
         },
         {
           "group": "Next.js Config",
+          "icon": "gear",
           "pages": [
             "packages/next-config/overview",
             "packages/next-config/bundle-analysis"
@@ -135,6 +155,7 @@
         "packages/payments",
         {
           "group": "Security",
+          "icon": "shield",
           "pages": [
             "packages/security/application",
             "packages/security/rate-limiting",
@@ -145,6 +166,7 @@
         },
         {
           "group": "SEO",
+          "icon": "magnifying-glass",
           "pages": [
             "packages/seo/metadata",
             "packages/seo/json-ld",
@@ -159,6 +181,7 @@
     },
     {
       "group": "Authentication",
+      "icon": "key",
       "pages": [
         "migrations/authentication/authjs",
         "migrations/authentication/better-auth"
@@ -166,10 +189,12 @@
     },
     {
       "group": "CMS",
+      "icon": "pen-to-square",
       "pages": ["migrations/cms/content-collections"]
     },
     {
       "group": "Database",
+      "icon": "database",
       "pages": [
         "migrations/database/drizzle",
         "migrations/database/planetscale",
@@ -181,22 +206,27 @@
     },
     {
       "group": "Documentation",
+      "icon": "book",
       "pages": ["migrations/documentation/fumadocs"]
     },
     {
       "group": "Feature flags",
+      "icon": "flag",
       "pages": ["migrations/flags/hypertune"]
     },
     {
       "group": "Formatting",
+      "icon": "code",
       "pages": ["migrations/formatting/eslint"]
     },
     {
       "group": "Deployment",
+      "icon": "cloud-arrow-up",
       "pages": ["deployment/vercel", "deployment/netlify"]
     },
     {
       "group": "Payments",
+      "icon": "credit-card",
       "pages": [
         "migrations/payments/lemon-squeezy",
         "migrations/payments/paddle"
@@ -204,6 +234,7 @@
     },
     {
       "group": "Storage",
+      "icon": "hard-drive",
       "pages": ["migrations/storage/upload-thing"]
     },
     {
@@ -212,6 +243,7 @@
     },
     {
       "group": "Libraries",
+      "icon": "book-bookmark",
       "pages": [
         "addons/friendlier-words",
         "addons/fuse",
@@ -226,6 +258,7 @@
     },
     {
       "group": "Tools",
+      "icon": "screwdriver-wrench",
       "pages": [
       "addons/dub",
       "addons/infisical",

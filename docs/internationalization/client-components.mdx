@@ -1,0 +1,493 @@
+---
+title: 'Client Components'
+description: 'Working with translations in client components'
+icon: 'browser'
+---
+
+# Client Components
+
+This guide explains how to use the internationalization package with React Client Components in your Next.js application.
+
+## Overview
+
+Client Components run in the browser and can include interactive features. To use translations in Client Components, you need to:
+
+1. Wrap your Client Components with the `TranslationProvider` in a Server Component
+2. Use the `useTranslation` hook in your Client Components to access translations
+
+## Setting Up the Translation Provider
+
+In a Server Component that renders your Client Component, wrap the Client Component with the `TranslationProvider`:
+
+```tsx
+// app/[locale]/contact/page.tsx (Server Component)
+import { getDictionary } from '@repo/internationalization';
+import { TranslationProvider } from '@repo/internationalization/TranslationProvider';
+import ContactForm from '@/components/ContactForm'; // Client component
+
+export default async function ContactPage({ params }: { params: { locale: string } }) {
+  const dictionary = await getDictionary(params.locale);
+  
+  return (
+    <div>
+      <h1>{dictionary.web.contact.title}</h1>
+      <p>{dictionary.web.contact.description}</p>
+      
+      <TranslationProvider locale={params.locale} messages={dictionary}>
+        <ContactForm />
+      </TranslationProvider>
+    </div>
+  );
+}
+```
+
+The `TranslationProvider` component:
+- Takes the current locale and dictionary as props
+- Makes translations available to all Client Components within its subtree
+- Uses `next-intl` under the hood to provide translations
+
+## Using the useTranslation Hook
+
+In your Client Components, import and use the `useTranslation` hook to access translations:
+
+```tsx
+// components/ContactForm.tsx (Client Component)
+'use client';
+
+import { useState } from 'react';
+import { useTranslation } from '@repo/internationalization/useTranslation';
+
+export default function ContactForm() {
+  const { t } = useTranslation('web.contact.form');
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    message: ''
+  });
+  
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // Form submission logic
+  };
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      <div className="form-group">
+        <label htmlFor="name">{t('name')}</label>
+        <input
+          type="text"
+          id="name"
+          name="name"
+          value={formData.name}
+          onChange={handleChange}
+          placeholder={t('namePlaceholder')}
+          required
+        />
+      </div>
+      
+      <div className="form-group">
+        <label htmlFor="email">{t('email')}</label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          value={formData.email}
+          onChange={handleChange}
+          placeholder={t('emailPlaceholder')}
+          required
+        />
+      </div>
+      
+      <div className="form-group">
+        <label htmlFor="message">{t('message')}</label>
+        <textarea
+          id="message"
+          name="message"
+          value={formData.message}
+          onChange={handleChange}
+          placeholder={t('messagePlaceholder')}
+          required
+        ></textarea>
+      </div>
+      
+      <button type="submit">{t('submit')}</button>
+    </form>
+  );
+}
+```
+
+The `useTranslation` hook:
+- Takes a namespace parameter that specifies which part of the translation object to use
+- Returns a `t` function that you can use to access translations within that namespace
+- Automatically updates when the locale changes
+
+## Namespace Parameter
+
+The namespace parameter in the `useTranslation` hook helps you access a specific section of your translations:
+
+```tsx
+// Access translations under web.contact.form
+const { t } = useTranslation('web.contact.form');
+
+// Now you can use t('fieldName') instead of t('web.contact.form.fieldName')
+t('name') // -> "Name"
+t('email') // -> "Email"
+```
+
+You can use different namespaces in different components based on the section of translations they need:
+
+```tsx
+// In a navigation component
+const { t } = useTranslation('web.header');
+
+// In a footer component
+const { t } = useTranslation('web.footer');
+```
+
+## Dynamic Values and Formatting
+
+You can include dynamic values in your translations:
+
+```tsx
+// Translation: "Hello, {name}!"
+const { t } = useTranslation('web.greeting');
+
+// Pass values as an object
+t('welcome', { name: user.name }) // -> "Hello, John!"
+```
+
+For date and number formatting:
+
+```tsx
+// Translation: "Last updated on {date}"
+const { t } = useTranslation('web.common');
+
+// Format date according to the current locale
+const formattedDate = new Intl.DateTimeFormat(locale, {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric'
+}).format(new Date());
+
+t('lastUpdated', { date: formattedDate })
+```
+
+## Pluralization
+
+You can handle pluralization in your translations:
+
+```tsx
+// In your translation file:
+// {
+//   "items": {
+//     "zero": "No items",
+//     "one": "One item",
+//     "other": "{count} items"
+//   }
+// }
+
+const { t } = useTranslation('web.products');
+
+// Pass the count as a parameter
+t('items', { count: 0 }) // -> "No items"
+t('items', { count: 1 }) // -> "One item"
+t('items', { count: 5 }) // -> "5 items"
+```
+
+## Creating a Language Switcher
+
+You can create a language switcher component to allow users to change the language:
+
+```tsx
+// components/LanguageSwitcher.tsx
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { i18nConfig } from '@repo/internationalization/i18nConfig';
+import { useTranslation } from '@repo/internationalization/useTranslation';
+
+// Map of locale codes to their display names
+const localeNames: Record<string, string> = {
+  en: 'English',
+  tr: 'Türkçe',
+  es: 'Español',
+  de: 'Deutsch'
+};
+
+export default function LanguageSwitcher() {
+  const pathname = usePathname();
+  const { t } = useTranslation('web.common');
+  
+  // Function to get the path for a different locale
+  const getLocalePath = (locale: string) => {
+    const segments = pathname.split('/');
+    const currentLocale = segments[1];
+    
+    // Check if the current path already has a locale
+    if (i18nConfig.locales.includes(currentLocale)) {
+      segments[1] = locale;
+      return segments.join('/');
+    }
+    
+    // If no locale in the path, add it
+    return `/${locale}${pathname}`;
+  };
+  
+  return (
+    <div className="language-switcher">
+      <span className="language-label">{t('language')}:</span>
+      <ul className="language-list">
+        {i18nConfig.locales.map((locale) => (
+          <li key={locale}>
+            <Link 
+              href={getLocalePath(locale)}
+              className={pathname.startsWith(`/${locale}/`) ? 'active' : ''}
+            >
+              {localeNames[locale] || locale.toUpperCase()}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Keep Client Components Small">
+    Split large Client Components into smaller ones and use the appropriate namespace for each component to keep translations organized.
+  </Accordion>
+  
+  <Accordion title="Use TypeScript for Type Safety">
+    Define types for your translations to get better IDE support:
+    ```typescript
+    // Define types for your translations
+    type ContactFormTranslations = {
+      name: string;
+      email: string;
+      message: string;
+      submit: string;
+      // Add more fields as needed
+    };
+    
+    // Use type assertion for better type checking
+    const { t } = useTranslation<ContactFormTranslations>('web.contact.form');
+    ```
+  </Accordion>
+  
+  <Accordion title="Handle Missing Translations">
+    Always provide fallbacks for translations that might be missing:
+    ```tsx
+    // Use optional chaining and nullish coalescing
+    {t('specialField') ?? t('defaultField')}
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Examples
+
+### Interactive Form with Validation
+
+```tsx
+// components/SignupForm.tsx
+'use client';
+
+import { useState } from 'react';
+import { useTranslation } from '@repo/internationalization/useTranslation';
+
+type FormErrors = {
+  name?: string;
+  email?: string;
+  password?: string;
+};
+
+export default function SignupForm() {
+  const { t } = useTranslation('web.auth.signup');
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: ''
+  });
+  const [errors, setErrors] = useState<FormErrors>({});
+  
+  const validate = () => {
+    const newErrors: FormErrors = {};
+    
+    if (!formData.name) {
+      newErrors.name = t('errors.nameRequired');
+    }
+    
+    if (!formData.email) {
+      newErrors.email = t('errors.emailRequired');
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = t('errors.emailInvalid');
+    }
+    
+    if (!formData.password) {
+      newErrors.password = t('errors.passwordRequired');
+    } else if (formData.password.length < 8) {
+      newErrors.password = t('errors.passwordLength');
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+  
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: undefined }));
+    }
+  };
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    if (validate()) {
+      // Form submission logic
+      console.log('Form submitted:', formData);
+      alert(t('submitSuccess'));
+    }
+  };
+  
+  return (
+    <form onSubmit={handleSubmit} className="signup-form">
+      <h2>{t('title')}</h2>
+      
+      <div className="form-group">
+        <label htmlFor="name">{t('name')}</label>
+        <input
+          type="text"
+          id="name"
+          name="name"
+          value={formData.name}
+          onChange={handleChange}
+          className={errors.name ? 'error' : ''}
+        />
+        {errors.name && <span className="error-message">{errors.name}</span>}
+      </div>
+      
+      <div className="form-group">
+        <label htmlFor="email">{t('email')}</label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          value={formData.email}
+          onChange={handleChange}
+          className={errors.email ? 'error' : ''}
+        />
+        {errors.email && <span className="error-message">{errors.email}</span>}
+      </div>
+      
+      <div className="form-group">
+        <label htmlFor="password">{t('password')}</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          value={formData.password}
+          onChange={handleChange}
+          className={errors.password ? 'error' : ''}
+        />
+        {errors.password && <span className="error-message">{errors.password}</span>}
+      </div>
+      
+      <div className="form-actions">
+        <button type="submit">{t('submit')}</button>
+      </div>
+      
+      <p className="terms">{t('termsNotice')}</p>
+    </form>
+  );
+}
+```
+
+### Dynamic Content Loading
+
+```tsx
+// components/DynamicContent.tsx
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useTranslation } from '@repo/internationalization/useTranslation';
+
+export default function DynamicContent() {
+  const { t } = useTranslation('web.dashboard');
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/data');
+        const result = await response.json();
+        setData(result);
+        setError(null);
+      } catch (err) {
+        setError(t('errors.fetchFailed'));
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    fetchData();
+  }, [t]);
+  
+  if (loading) {
+    return <div className="loading">{t('loading')}</div>;
+  }
+  
+  if (error) {
+    return <div className="error">{error}</div>;
+  }
+  
+  return (
+    <div className="dynamic-content">
+      <h2>{t('dataTitle')}</h2>
+      
+      {data && data.items && data.items.length > 0 ? (
+        <ul className="data-list">
+          {data.items.map((item, index) => (
+            <li key={index} className="data-item">
+              <h3>{item.title}</h3>
+              <p>{item.description}</p>
+              <span className="date">
+                {t('lastUpdated', { 
+                  date: new Date(item.updatedAt).toLocaleDateString() 
+                })}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="no-data">{t('noData')}</p>
+      )}
+    </div>
+  );
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Adding Languages" icon="plus" href="/internationalization/adding-languages">
+    Learn how to add support for new languages
+  </Card>
+  <Card title="Advanced Usage" icon="code" href="/internationalization/advanced-usage">
+    Advanced internationalization techniques
+  </Card>
+</CardGroup>
