@@ -1,6 +1,5 @@
-
-// apps/api/app/api-key/controller.ts
-import { createApiKey } from '@repo/api-key'
+// apps/api/app/api-keys/controller.ts
+import { createApiKey } from '@repo/api-key/lib/clerk-adapter'
 
 type CreateKeyInput = {
   userId: string

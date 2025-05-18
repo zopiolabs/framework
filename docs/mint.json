@@ -112,7 +112,7 @@
         {
           "group": "Auth",
           "icon": "lock",
-          "pages": ["packages/authentication", "packages/authorization-rbac", "packages/authorization-abac", "packages/authorization-runner", "packages/authorization-hooks", "packages/authorization-log"]
+          "pages": ["packages/authentication", "packages/authentication-api-keys", "packages/authorization-rbac", "packages/authorization-abac", "packages/authorization-runner", "packages/authorization-hooks", "packages/authorization-log"]
         },
         "packages/cms",
         "packages/collaboration",

@@ -1,0 +1,140 @@
+---
+title: API Keys
+description: Manage and use API keys for secure programmatic access to your application's resources.
+icon: 'key'
+---
+
+# Programmatic Access to Your Application
+
+API keys provide a secure way to authenticate programmatic access to your application's resources. The zopio framework includes a comprehensive API key management system integrated with [Clerk](https://clerk.com/).
+
+## Overview
+
+The API key system in zopio is built on top of Clerk's API key functionality and consists of:
+
+- A core package (`@repo/api-key`) that handles API key creation and validation
+- API endpoints for managing API keys
+- Authentication middleware for protecting routes with API key authentication
+
+## Core Package
+
+The `@repo/api-key` package provides the fundamental API key functionality:
+
+```typescript
+// Create a new API key
+import { createApiKey } from '@repo/api-key/lib/clerk-adapter'
+
+const apiKey = await createApiKey(
+  userId,    // The user ID to associate with the key
+  name,      // A descriptive name for the key
+  scopes,    // Array of permission scopes
+  expiration // Expiration date for the key
+)
+
+// Validate an API key
+import { validateApiKey } from '@repo/api-key/lib/validate'
+
+const userId = await validateApiKey(apiKeyString)
+```
+
+## API Endpoints
+
+The framework provides RESTful endpoints for API key management in the `api` app:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api-keys` | GET | List all API keys for the authenticated user |
+| `/api-keys` | POST | Create a new API key |
+| `/api-keys` | DELETE | Delete an API key by ID |
+
+These endpoints are protected by the API key authentication middleware, ensuring that only authorized users can manage API keys.
+
+## Authentication Middleware
+
+The `apiKeyAuthMiddleware` function provides a simple way to protect routes with API key authentication:
+
+```typescript
+import { apiKeyAuthMiddleware } from '@repo/auth/apiKeyAuthMiddleware'
+
+export async function GET(req: Request) {
+  const validatedReq = await apiKeyAuthMiddleware(req)
+  
+  // If authentication fails, validatedReq will be a Response object
+  if (validatedReq instanceof Response) return validatedReq
+  
+  // Authentication succeeded, validatedReq.user contains the user ID
+  const userId = validatedReq.user.id
+  
+  // Process the authenticated request
+  // ...
+}
+```
+
+## Creating API Keys
+
+To create a new API key, make a POST request to the `/api-keys` endpoint with the following payload:
+
+```json
+{
+  "userId": "user_123",
+  "name": "My API Key",
+  "scopes": ["read:data", "write:data"],
+  "expiration": "2024-12-31"
+}
+```
+
+The response will include the API key details, including the secret key that should be securely stored by the client.
+
+## Using API Keys
+
+To use an API key in API requests, include it in the Authorization header:
+
+```
+Authorization: Bearer your_api_key_here
+```
+
+## Security Considerations
+
+- API keys should be treated as sensitive credentials and never exposed in client-side code
+- Use HTTPS for all API requests to prevent key interception
+- Assign the minimum necessary permissions to each API key
+- Implement key rotation policies for long-lived API keys
+- Monitor API key usage for suspicious activity
+
+## Implementation Details
+
+The API key system is implemented with a clean separation of concerns:
+
+1. **Core Package**: Handles the fundamental operations of creating and validating API keys
+2. **API Layer**: Exposes endpoints for managing API keys
+3. **Authentication Middleware**: Protects routes with API key authentication
+
+This architecture ensures that the API key system is modular, maintainable, and secure.
+
+## Example: Protected Endpoint
+
+Here's an example of a protected endpoint that requires API key authentication:
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server'
+import { apiKeyAuthMiddleware } from '@repo/auth/apiKeyAuthMiddleware'
+
+export async function GET(req: NextRequest) {
+  const validatedReq = await apiKeyAuthMiddleware(req)
+  
+  if (validatedReq instanceof Response) {
+    return validatedReq // Return the error response
+  }
+
+  // The request is authenticated, process it
+  const userId = validatedReq.user.id
+  
+  return NextResponse.json({
+    message: 'API key authentication successful',
+    user: userId,
+    timestamp: new Date().toISOString(),
+  })
+}
+```
+
+This endpoint will return a 401 Unauthorized response if no API key is provided, a 403 Forbidden response if an invalid API key is provided, and a 200 OK response with the user ID if a valid API key is provided.
