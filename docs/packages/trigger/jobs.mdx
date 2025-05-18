@@ -1,0 +1,213 @@
+---
+title: 'Jobs'
+description: 'Creating and managing background jobs with Trigger.dev'
+icon: 'briefcase'
+---
+
+# Creating and Managing Jobs
+
+Jobs are the core building blocks of the Trigger.dev integration. This guide explains how to create, organize, and manage jobs in your Zopio application.
+
+## Job Structure
+
+In the Zopio framework, jobs are organized in a dedicated directory structure:
+
+```
+app/
+  trigger/
+    jobs/
+      index.ts     # Exports all job definitions
+      user-jobs.ts # User-related jobs
+      # Add more job files as needed
+    route.ts       # API route handler
+```
+
+## Creating a Job
+
+To create a new job, follow these steps:
+
+1. Create a new file in the `app/trigger/jobs` directory or add to an existing file
+2. Import the necessary dependencies
+3. Define your job using the Trigger.dev client
+
+Here's an example of a basic job:
+
+```typescript
+import { client } from "@repo/trigger";
+import { eventTrigger, type IO } from "@trigger.dev/sdk";
+
+// Define the payload type for type safety
+interface EmailPayload {
+  to: string;
+  subject: string;
+  body: string;
+}
+
+// Define the job
+export const sendEmailJob = client.defineJob({
+  id: "send-email",
+  name: "Send Email",
+  version: "1.0.0",
+  trigger: eventTrigger({
+    name: "email.send",
+  }),
+  run: async (payload: EmailPayload, io: IO) => {
+    await io.logger.info(`Sending email to ${payload.to}`);
+    
+    // Your email sending logic here
+    // Example: await emailService.send(payload);
+    
+    return { success: true, to: payload.to };
+  },
+});
+```
+
+## Job Types
+
+Trigger.dev supports various types of jobs:
+
+### Event-Triggered Jobs
+
+Jobs that run in response to specific events:
+
+```typescript
+import { eventTrigger } from "@trigger.dev/sdk";
+
+export const eventJob = client.defineJob({
+  id: "event-job",
+  name: "Event Job",
+  version: "1.0.0",
+  trigger: eventTrigger({
+    name: "custom.event",
+  }),
+  run: async (payload, io) => {
+    // Job logic
+  },
+});
+```
+
+### Scheduled Jobs
+
+Jobs that run on a schedule:
+
+```typescript
+import { scheduleEvent } from "@trigger.dev/sdk";
+
+export const scheduledJob = client.defineJob({
+  id: "scheduled-job",
+  name: "Scheduled Job",
+  version: "1.0.0",
+  trigger: scheduleEvent({
+    cron: "0 9 * * *", // Run at 9 AM every day
+  }),
+  run: async (payload, io) => {
+    // Job logic
+  },
+});
+```
+
+### Webhook-Triggered Jobs
+
+Jobs that run in response to external webhooks:
+
+```typescript
+import { webhookEvent } from "@trigger.dev/sdk";
+
+export const webhookJob = client.defineJob({
+  id: "webhook-job",
+  name: "Webhook Job",
+  version: "1.0.0",
+  trigger: webhookEvent({
+    source: "stripe",
+    event: "payment.succeeded",
+  }),
+  run: async (payload, io) => {
+    // Job logic
+  },
+});
+```
+
+## Job Versioning
+
+When updating a job, it's important to increment the version number to ensure proper handling of in-flight jobs:
+
+```typescript
+export const myJob = client.defineJob({
+  id: "my-job",
+  name: "My Job",
+  version: "1.0.1", // Increment this when making changes
+  // ...
+});
+```
+
+## Job Organization
+
+For larger applications, it's recommended to organize jobs by domain:
+
+- `user-jobs.ts` - Jobs related to user management
+- `payment-jobs.ts` - Jobs related to payments
+- `notification-jobs.ts` - Jobs related to notifications
+
+Make sure to export all job files from the `index.ts` file:
+
+```typescript
+// jobs/index.ts
+export * from './user-jobs.js';
+export * from './payment-jobs.js';
+export * from './notification-jobs.js';
+```
+
+## Job Dependencies
+
+Jobs can depend on external services or integrations:
+
+```typescript
+import { slack } from "@trigger.dev/slack";
+
+const slackIntegration = slack.create();
+
+export const slackNotificationJob = client.defineJob({
+  id: "slack-notification",
+  name: "Slack Notification",
+  version: "1.0.0",
+  integrations: {
+    slack: slackIntegration,
+  },
+  trigger: eventTrigger({
+    name: "notification.send",
+  }),
+  run: async (payload, io) => {
+    await io.slack.postMessage("notification", {
+      channel: payload.channel,
+      text: payload.message,
+    });
+    return { success: true };
+  },
+});
+```
+
+## Testing Jobs
+
+To test a job, you can send an event that triggers it:
+
+```typescript
+import { sendEvent } from "@repo/trigger";
+
+// In a test or development environment
+await sendEvent("email.send", {
+  to: "test@example.com",
+  subject: "Test Email",
+  body: "This is a test email"
+});
+```
+
+## Job Monitoring
+
+You can monitor your jobs in the Trigger.dev dashboard, which provides:
+
+- Real-time job execution status
+- Detailed logs for each run
+- Performance metrics
+- Error tracking
+
+For more information, visit the [Trigger.dev documentation](https://trigger.dev/docs/documentation/guides/monitoring-jobs).

@@ -176,6 +176,16 @@
         "packages/storage",
         "packages/testing",
         "packages/toolbar",
+        {
+          "group": "Trigger",
+          "icon": "bolt",
+          "pages": [
+            "packages/trigger",
+            "packages/trigger/setup",
+            "packages/trigger/jobs",
+            "packages/trigger/events"
+          ]
+        },
         "packages/webhooks"
       ]
     },
@@ -238,8 +248,14 @@
       "pages": ["migrations/storage/upload-thing"]
     },
     {
-      "group": "",
-      "pages": ["recipes/ai-chatbot"]
+      "group": "Recipes",
+      "icon": "book-open-cover",
+      "pages": [
+        "recipes/ai-chatbot",
+        "recipes/analytics-app",
+        "recipes/chat-app",
+        "recipes/subscription-saas"
+      ]
     },
     {
       "group": "Libraries",

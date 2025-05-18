@@ -1,0 +1,207 @@
+---
+title: 'Events'
+description: 'Sending and handling events with Trigger.dev'
+icon: 'bolt-lightning'
+---
+
+# Events in Trigger.dev
+
+Events are the primary way to trigger jobs in the Trigger.dev integration. This guide explains how to send events, handle them, and implement best practices for event-driven architecture.
+
+## Event Structure
+
+Events in Trigger.dev have two main components:
+
+1. **Event Name**: A string identifier for the event (e.g., `user.created`)
+2. **Payload**: The data associated with the event (e.g., user information)
+
+## Sending Events
+
+The `@repo/trigger` package provides a helper function for sending events:
+
+```typescript
+import { sendEvent } from "@repo/trigger";
+
+// Send an event with a payload
+await sendEvent("user.created", {
+  email: "user@example.com",
+  name: "John Doe",
+  userId: "123456"
+});
+```
+
+### Error Handling
+
+The `sendEvent` function includes built-in error handling:
+
+```typescript
+try {
+  await sendEvent("payment.processed", { 
+    amount: 100, 
+    currency: "USD" 
+  });
+  console.log("Payment event sent successfully");
+} catch (error) {
+  console.error("Failed to send payment event:", error);
+  // Handle the error appropriately
+}
+```
+
+## API Integration
+
+The API app includes a route handler that allows external systems to send events:
+
+```typescript
+// POST /trigger
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    
+    if (!body || !body.event) {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), { 
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    const { event, payload } = body;
+    const result = await sendEvent(event, payload);
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: `Event ${event} sent to Trigger.dev`,
+      result
+    }), { 
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    // Error handling
+  }
+}
+```
+
+## Event Naming Conventions
+
+It's recommended to use a consistent naming convention for events:
+
+- Use dot notation to organize events hierarchically
+- Start with the entity, followed by the action
+- Use lowercase letters and avoid special characters
+
+Examples:
+- `user.created`
+- `user.updated`
+- `payment.succeeded`
+- `email.sent`
+- `document.shared`
+
+## Type Safety
+
+For better type safety, define interfaces for your event payloads:
+
+```typescript
+// Define event payload types
+interface UserCreatedPayload {
+  email: string;
+  name?: string;
+  userId: string;
+}
+
+interface PaymentProcessedPayload {
+  amount: number;
+  currency: string;
+  customerId: string;
+}
+
+// Use with sendEvent
+await sendEvent<UserCreatedPayload>("user.created", {
+  email: "user@example.com",
+  name: "John Doe",
+  userId: "123456"
+});
+```
+
+## Event Patterns
+
+### Event Broadcasting
+
+Send the same event to multiple consumers:
+
+```typescript
+// This event can trigger multiple jobs
+await sendEvent("user.created", userData);
+```
+
+### Event Chaining
+
+One job can trigger another job by sending an event:
+
+```typescript
+export const processUploadJob = client.defineJob({
+  id: "process-upload",
+  name: "Process Upload",
+  version: "1.0.0",
+  trigger: eventTrigger({
+    name: "file.uploaded",
+  }),
+  run: async (payload, io) => {
+    // Process the file
+    await io.logger.info(`Processing file: ${payload.filename}`);
+    
+    // Trigger the next job in the chain
+    await sendEvent("file.processed", {
+      fileId: payload.fileId,
+      processingResult: "success"
+    });
+    
+    return { success: true };
+  },
+});
+```
+
+### Delayed Events
+
+You can schedule events to be sent in the future:
+
+```typescript
+import { client } from "@repo/trigger";
+
+// Schedule an event for the future
+await client.sendEvent({
+  name: "reminder.send",
+  payload: {
+    userId: "123",
+    message: "Don't forget your appointment"
+  },
+  delay: {
+    hours: 24 // Send this event 24 hours from now
+  }
+});
+```
+
+## Testing Events
+
+For testing, you can send events directly to the API endpoint:
+
+```bash
+curl -X POST http://localhost:3002/trigger \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event": "test.event",
+    "payload": {
+      "message": "This is a test event"
+    }
+  }'
+```
+
+## Monitoring Events
+
+The Trigger.dev dashboard provides tools for monitoring events:
+
+- Event history
+- Success and failure rates
+- Event payloads
+- Related job runs
+
+For more information, visit the [Trigger.dev documentation](https://trigger.dev/docs/documentation/concepts/events).

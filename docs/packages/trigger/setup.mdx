@@ -1,0 +1,70 @@
+---
+title: 'Setup'
+description: 'Setting up the Trigger.dev integration'
+icon: 'gear'
+---
+
+# Setting Up Trigger.dev Integration
+
+This guide walks you through setting up the Trigger.dev integration in your Zopio application.
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+1. A Trigger.dev account (sign up at [trigger.dev](https://trigger.dev))
+2. Access to your Zopio application codebase
+
+## Installation
+
+The `@repo/trigger` package is already included in the Zopio monorepo. If you're working with a new package that needs to use Trigger.dev, add it as a dependency:
+
+```bash
+pnpm add @repo/trigger
+```
+
+## Environment Variables
+
+Add the following environment variables to your `.env` file:
+
+```
+TRIGGER_API_KEY=your_trigger_dev_api_key
+TRIGGER_API_URL=https://api.trigger.dev  # Optional, this is the default
+```
+
+You can find your API key in the Trigger.dev dashboard under Project Settings.
+
+## Verifying Installation
+
+To verify that the Trigger.dev integration is working correctly:
+
+1. Make sure your application is running
+2. Send a test event using the API endpoint
+3. Check the Trigger.dev dashboard to see if the event was received
+
+Example test request:
+
+```bash
+curl -X POST http://localhost:3002/trigger \
+  -H "Content-Type: application/json" \
+  -d '{"event": "test.event", "payload": {"message": "Hello from Trigger.dev"}}'
+```
+
+## Webhook Configuration
+
+For production environments, you'll need to configure the Trigger.dev webhook to point to your API endpoint:
+
+1. Go to the Trigger.dev dashboard
+2. Navigate to Project Settings > Webhooks
+3. Add a new webhook with the URL: `https://your-domain.com/trigger`
+
+## Troubleshooting
+
+If you encounter issues with the setup:
+
+- Verify that your API key is correct
+- Check that the API endpoint is accessible
+- Review the server logs for any error messages
+- Ensure that the Trigger.dev client is properly initialized
+
+For more detailed troubleshooting, see the [Trigger.dev documentation](https://trigger.dev/docs/documentation/guides/troubleshooting).

@@ -1,0 +1,236 @@
+---
+title: Build an Analytics Application
+description: Learn how to build a comprehensive analytics application using zopio and the analytics package.
+---
+
+In this guide, we'll build a complete analytics application using zopio's built-in analytics package. You'll learn how to track user events, visualize data, and create insightful dashboards.
+
+## 1. Create a new project
+
+```bash Terminal
+npx zopio@latest init analytics-app
+```
+
+This will create a new project with the name `analytics-app` and install the necessary dependencies.
+
+## 2. Configure your environment variables
+
+Follow the guide on [Environment Variables](/setup/env) to set up your environment variables.
+
+For analytics, you'll need to set up the following variables:
+
+```bash .env
+DATABASE_URL="your-database-url"
+ANALYTICS_API_KEY="your-analytics-api-key"
+```
+
+## 3. Set up the analytics package
+
+The analytics package is already included in your zopio project. Let's configure it to track the events we're interested in.
+
+```tsx apps/app/app/providers.tsx
+import { AnalyticsProvider } from '@repo/analytics/web';
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <AnalyticsProvider 
+      apiKey={process.env.NEXT_PUBLIC_ANALYTICS_API_KEY}
+      options={{
+        trackPageViews: true,
+        trackClicks: true,
+        trackFormSubmissions: true,
+      }}
+    >
+      {children}
+    </AnalyticsProvider>
+  );
+}
+```
+
+## 4. Create custom event tracking
+
+Let's create a custom hook to track specific events in our application.
+
+```tsx apps/app/lib/use-analytics.ts
+import { useAnalytics } from '@repo/analytics/web';
+
+export function useAppAnalytics() {
+  const analytics = useAnalytics();
+
+  const trackFeatureUsage = (featureName: string, metadata?: Record<string, any>) => {
+    analytics.track('feature_used', {
+      feature: featureName,
+      ...metadata,
+    });
+  };
+
+  const trackConversion = (planName: string, amount: number) => {
+    analytics.track('conversion', {
+      plan: planName,
+      amount,
+      currency: 'USD',
+    });
+  };
+
+  return {
+    ...analytics,
+    trackFeatureUsage,
+    trackConversion,
+  };
+}
+```
+
+## 5. Create the analytics dashboard
+
+Now, let's create a dashboard to visualize our analytics data. We'll create components for different types of charts.
+
+```tsx apps/app/app/(authenticated)/analytics/components/dashboard.tsx
+'use client';
+
+import { useEffect, useState } from 'react';
+import { Card } from '@repo/design-system/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@repo/design-system/components/ui/tabs';
+import { UserActivityChart } from './user-activity-chart';
+import { ConversionRateChart } from './conversion-rate-chart';
+import { TopFeaturesChart } from './top-features-chart';
+import { fetchAnalyticsData } from '../lib/fetch-analytics';
+import { AnalyticsData } from '../types';
+
+export function AnalyticsDashboard() {
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [timeframe, setTimeframe] = useState<'day' | 'week' | 'month'>('week');
+
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const analyticsData = await fetchAnalyticsData(timeframe);
+        setData(analyticsData);
+      } catch (error) {
+        console.error('Failed to load analytics data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [timeframe]);
+
+  return (
+    <div className="space-y-4">
+      <Tabs defaultValue="week" onValueChange={(value) => setTimeframe(value as any)}>
+        <TabsList>
+          <TabsTrigger value="day">Last 24 Hours</TabsTrigger>
+          <TabsTrigger value="week">Last Week</TabsTrigger>
+          <TabsTrigger value="month">Last Month</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card className="p-4">
+          <h3 className="text-lg font-medium">User Activity</h3>
+          <UserActivityChart data={data?.userActivity} isLoading={isLoading} />
+        </Card>
+
+        <Card className="p-4">
+          <h3 className="text-lg font-medium">Conversion Rate</h3>
+          <ConversionRateChart data={data?.conversions} isLoading={isLoading} />
+        </Card>
+
+        <Card className="p-4">
+          <h3 className="text-lg font-medium">Top Features</h3>
+          <TopFeaturesChart data={data?.topFeatures} isLoading={isLoading} />
+        </Card>
+      </div>
+    </div>
+  );
+}
+```
+
+## 6. Create the API endpoint for analytics data
+
+Let's create an API endpoint to fetch the analytics data from our database.
+
+```tsx apps/app/app/api/analytics/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@repo/database';
+import { analytics } from '@repo/analytics/product';
+import { auth } from '@repo/auth/server';
+
+export async function GET(req: NextRequest) {
+  try {
+    const { userId, orgId } = await auth();
+    
+    if (!userId || !orgId) {
+      return new NextResponse('Unauthorized', { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const timeframe = searchParams.get('timeframe') || 'week';
+    
+    const analyticsData = await analytics.getOrganizationData({
+      orgId,
+      timeframe: timeframe as 'day' | 'week' | 'month',
+    });
+
+    return NextResponse.json(analyticsData);
+  } catch (error) {
+    console.error('Error fetching analytics data:', error);
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
+}
+```
+
+## 7. Create the analytics page
+
+Finally, let's create the main analytics page that will display our dashboard.
+
+```tsx apps/app/app/(authenticated)/analytics/page.tsx
+import { Metadata } from 'next';
+import { auth } from '@repo/auth/server';
+import { notFound } from 'next/navigation';
+import { Header } from '../components/header';
+import { AnalyticsDashboard } from './components/dashboard';
+
+export const metadata: Metadata = {
+  title: 'Analytics Dashboard',
+  description: 'View insights about your application usage and performance.',
+};
+
+export default async function AnalyticsPage() {
+  const { orgId } = await auth();
+
+  if (!orgId) {
+    notFound();
+  }
+
+  return (
+    <div className="space-y-4">
+      <Header pages={['Dashboard']} page="Analytics" />
+      <div className="container py-4">
+        <AnalyticsDashboard />
+      </div>
+    </div>
+  );
+}
+```
+
+## 8. Run the application
+
+Now you can run your analytics application:
+
+```bash Terminal
+pnpm dev --filter app
+```
+
+Visit [http://localhost:3000/analytics](http://localhost:3000/analytics) to see your analytics dashboard.
+
+## Next Steps
+
+- Implement more advanced analytics features like cohort analysis or funnel visualization
+- Set up alerts for important metrics
+- Create custom reports that can be exported or shared
+- Integrate with third-party analytics providers for more advanced insights
+
+You've successfully built an analytics application using zopio! If you have any questions, please reach out to us on [Twitter](https://x.com/zopiolabs) or open an issue on [GitHub](https://github.com/zopiolabs/zopio).

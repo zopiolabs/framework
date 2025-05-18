@@ -1,0 +1,249 @@
+---
+title: 'Trigger'
+description: 'Integrate with Trigger.dev for background jobs and event-driven workflows'
+icon: 'bolt'
+---
+
+# Event-Driven Workflows and Background Jobs
+
+The `@repo/trigger` package provides a seamless integration with [Trigger.dev](https://trigger.dev), a powerful platform for running background jobs and event-driven workflows in your Next.js application.
+
+## Features
+
+- Pre-configured Trigger.dev client with proper environment variable handling
+- Type-safe event sending with error handling
+- Organized job structure for better maintainability
+- Seamless integration with the API app
+
+## Installation
+
+This package is part of the Zopio monorepo and is available to all applications in the workspace.
+
+```bash
+# If you're adding it to a new package in the monorepo
+pnpm add @repo/trigger
+```
+
+## Environment Variables
+
+The package requires the following environment variables:
+
+| Variable | Description | Required |
+| --- | --- | --- |
+| `TRIGGER_API_KEY` | Your Trigger.dev API key | Yes |
+| `TRIGGER_API_URL` | The Trigger.dev API URL | No (defaults to "https://api.trigger.dev") |
+
+## Basic Usage
+
+### Importing the Client
+
+```typescript
+import { client } from "@repo/trigger";
+```
+
+### Defining a Job
+
+Jobs are defined using the Trigger.dev client. Here's an example of a simple job:
+
+```typescript
+import { client } from "@repo/trigger";
+import { eventTrigger, type IO } from "@trigger.dev/sdk";
+
+// Define the payload type for type safety
+interface UserCreatedPayload {
+  email: string;
+  name?: string;
+}
+
+// Define the job
+export const sendWelcomeEmailJob = client.defineJob({
+  id: "send-welcome-email",
+  name: "Send Welcome Email",
+  version: "1.0.0",
+  trigger: eventTrigger({
+    name: "user.created",
+  }),
+  run: async (payload: UserCreatedPayload, io: IO) => {
+    await io.logger.info(`Sending welcome email to ${payload.email}`);
+    // Your job logic here
+    return { success: true };
+  },
+});
+```
+
+### Sending Events
+
+To trigger a job, you need to send an event with the corresponding name:
+
+```typescript
+import { sendEvent } from "@repo/trigger";
+
+// Send an event to trigger a job
+await sendEvent("user.created", {
+  email: "user@example.com",
+  name: "John Doe"
+});
+```
+
+## Integration with API
+
+The trigger package is integrated with the API app to provide a webhook endpoint for Trigger.dev.
+
+### API Route Handler
+
+The API app includes a route handler at `app/trigger/route.ts` that processes incoming webhook requests:
+
+```typescript
+// app/trigger/route.ts
+import type { NextRequest } from "next/server";
+import { sendEvent } from "@repo/trigger";
+
+// Import all job definitions
+import "./jobs/index.js";
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    
+    if (!body || !body.event) {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), { 
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    const { event, payload } = body;
+    const result = await sendEvent(event, payload);
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: `Event ${event} sent to Trigger.dev`,
+      result
+    }), { 
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (error) {
+    console.error("Error processing trigger event:", error);
+    
+    return new Response(JSON.stringify({ 
+      error: "Failed to process event",
+      message: error instanceof Error ? error.message : "Unknown error"
+    }), { 
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+}
+```
+
+### Job Organization
+
+Jobs are organized in a dedicated directory structure:
+
+```
+app/
+  trigger/
+    jobs/
+      index.ts     # Exports all job definitions
+      user-jobs.ts # User-related jobs
+      # Add more job files as needed
+    route.ts       # API route handler
+```
+
+## Advanced Usage
+
+### Custom Job Triggers
+
+Besides event triggers, Trigger.dev supports various other trigger types:
+
+```typescript
+import { client } from "@repo/trigger";
+import { scheduleEvent } from "@trigger.dev/sdk";
+
+// Create a scheduled job
+export const dailyReportJob = client.defineJob({
+  id: "daily-report",
+  name: "Generate Daily Report",
+  version: "1.0.0",
+  trigger: scheduleEvent({
+    cron: "0 9 * * *", // Run at 9 AM every day
+  }),
+  run: async (payload, io) => {
+    await io.logger.info("Generating daily report");
+    // Generate and send report
+    return { success: true };
+  },
+});
+```
+
+### Job Dependencies
+
+You can define jobs that depend on other services:
+
+```typescript
+import { client } from "@repo/trigger";
+import { eventTrigger } from "@trigger.dev/sdk";
+import { slack } from "@trigger.dev/slack";
+
+// Create a job with Slack integration
+const slackIntegration = slack.create();
+
+export const notifySlackJob = client.defineJob({
+  id: "notify-slack",
+  name: "Notify Slack Channel",
+  version: "1.0.0",
+  integrations: {
+    slack: slackIntegration,
+  },
+  trigger: eventTrigger({
+    name: "important.event",
+  }),
+  run: async (payload, io) => {
+    await io.slack.postMessage("Notification", {
+      channel: "alerts",
+      text: `Important event: ${payload.message}`,
+    });
+    return { success: true };
+  },
+});
+```
+
+## Error Handling
+
+The `sendEvent` function includes built-in error handling:
+
+```typescript
+import { sendEvent } from "@repo/trigger";
+
+try {
+  await sendEvent("user.created", { email: "user@example.com" });
+  console.log("Event sent successfully");
+} catch (error) {
+  console.error("Failed to send event:", error);
+  // Handle the error appropriately
+}
+```
+
+## Troubleshooting
+
+### Missing API Key
+
+If you see a warning about a missing API key, make sure to set the `TRIGGER_API_KEY` environment variable:
+
+```
+TRIGGER_API_KEY=missing-api-key environment variable is not set. Trigger.dev functionality will not work properly.
+```
+
+### Job Not Running
+
+If your job isn't running when you send an event, check the following:
+
+1. Make sure the event name matches exactly
+2. Verify that your job is properly imported and registered
+3. Check the Trigger.dev dashboard for any errors
+
+## Learn More
+
+- [Trigger.dev Documentation](https://trigger.dev/docs)
+- [Next.js API Routes](https://nextjs.org/docs/app/building-your-application/routing/route-handlers)

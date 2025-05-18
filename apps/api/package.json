@@ -22,6 +22,8 @@
     "@repo/observability": "workspace:*",
     "@repo/payments": "workspace:*",
     "@repo/testing": "workspace:*",
+    "@repo/trigger": "workspace:*",
+    "@trigger.dev/sdk": "^2.2.0",
     "@sentry/nextjs": "^9.12.0",
     "@t3-oss/env-nextjs": "^0.12.0",
     "next": "15.3.0",
