@@ -1,0 +1,136 @@
+---
+title: 'Authorization Hooks'
+description: 'React hooks for authorization in Zopio applications'
+---
+
+# Authorization Hooks For Frontend Developers
+
+The `@repo/auth-hooks` package provides React hooks for authorization in Zopio applications. It works in conjunction with the authorization runner to provide a seamless way to check user permissions in React components.
+
+## Installation
+
+```bash
+pnpm add @repo/auth-hooks
+```
+
+## Usage
+
+The main hook provided by this package is `useAccess`, which allows you to check if a user has permission to perform a specific action on a resource.
+
+```tsx
+import { useAccess } from '@repo/auth-hooks';
+
+function MyComponent() {
+  const { can, reason, loading } = useAccess({
+    resource: 'posts',
+    action: 'edit',
+    record: { id: 1, authorId: 'user-123' },
+    context: { user: { id: 'user-123', role: 'editor' } }
+  });
+
+  if (loading) {
+    return <div>Checking permissions...</div>;
+  }
+
+  if (!can) {
+    return <div>Access denied: {reason}</div>;
+  }
+
+  return <div>You have permission to edit this post</div>;
+}
+```
+
+## API Reference
+
+### useAccess
+
+A React hook that evaluates access permissions for resources.
+
+#### Parameters
+
+The hook accepts a single object with the following properties:
+
+| Property | Type | Description | Required |
+|----------|------|-------------|----------|
+| resource | string | The resource being accessed (e.g., 'posts', 'users') | Yes |
+| action | string | The action being performed (e.g., 'create', 'read', 'update', 'delete') | Yes |
+| field | string | Optional field within the resource | No |
+| record | any | The record data being accessed | No |
+| context | any | Context information for evaluation (e.g., current user, roles) | Yes |
+
+#### Return Value
+
+The hook returns an object with the following properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| can | boolean | Indicates if access is allowed |
+| reason | string | Optional explanation for the access decision |
+| loading | boolean | Indicates if the access check is in progress |
+
+## Integration with Authorization Runner
+
+The `useAccess` hook internally uses the `evaluateAccess` function from the `@repo/auth-runner` package to perform the actual permission check. This ensures consistency between your React components and other parts of your application.
+
+## Example: Conditional Rendering
+
+```tsx
+import { useAccess } from '@repo/auth-hooks';
+
+function AdminPanel() {
+  const { can, loading } = useAccess({
+    resource: 'admin',
+    action: 'access',
+    context: { user: getCurrentUser() }
+  });
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  return (
+    <div>
+      <h1>Admin Panel</h1>
+      {can ? (
+        <AdminControls />
+      ) : (
+        <AccessDenied />
+      )}
+    </div>
+  );
+}
+```
+
+## Example: Disabling UI Elements
+
+```tsx
+import { useAccess } from '@repo/auth-hooks';
+
+function EditButton({ documentId, authorId }) {
+  const { can, loading } = useAccess({
+    resource: 'documents',
+    action: 'edit',
+    record: { id: documentId, authorId },
+    context: { user: getCurrentUser() }
+  });
+
+  return (
+    <button 
+      disabled={loading || !can} 
+      onClick={handleEdit}
+    >
+      Edit Document
+    </button>
+  );
+}
+```
+
+## Best Practices
+
+1. **Use with Server Components**: For Next.js applications, consider using the authorization runner directly in Server Components and the hooks in Client Components.
+
+2. **Caching Results**: The hook automatically memoizes results based on the parameters, but consider implementing additional caching for complex authorization rules.
+
+3. **Error Handling**: Always handle the loading state to provide a good user experience while permissions are being checked.
+
+4. **Combine with Authentication**: Use alongside your authentication solution to create a complete access control system.

@@ -8,9 +8,9 @@ import { Review } from './components/review';
 import { Social } from './components/social';
 
 export const metadata: Metadata = {
-  title: 'Production-grade Turborepo template for Next.js apps',
+  title: 'From idea to enterprise: The Next.js Turborepo template built for growth',
   description:
-    "A monorepo template designed to have everything you need to build your new SaaS app as quick as possible. Authentication, billing, analytics, SEO, database ORM and more — it's all here.",
+    "A full-featured monorepo template built to accelerate your Next.js app with authentication, billing, analytics, SEO, database ORM, and more — all out of the box..",
 };
 
 const Home = () => (

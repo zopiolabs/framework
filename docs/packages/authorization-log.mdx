@@ -1,0 +1,158 @@
+---
+title: Authorization Logging
+description: Track and monitor authorization attempts with the auth-log package.
+---
+
+# Authorization Logging For Audit Trail
+
+The `@repo/auth-log` package provides a simple yet powerful way to log and monitor authorization attempts in your application. It integrates seamlessly with the authorization packages to create an audit trail of access control decisions.
+
+## Overview
+
+Authorization logging is a critical component of security monitoring and compliance. The `@repo/auth-log` package allows you to:
+
+- **Track authorization decisions**: Log whether access was granted or denied
+- **Record contextual information**: Capture user, resource, and action details
+- **Customize logging destinations**: Output to console or file
+- **Support compliance requirements**: Maintain audit trails for regulatory needs
+
+## Installation
+
+The package is included by default in the zopio stack. If you need to install it separately:
+
+```bash
+pnpm add @repo/auth-log
+```
+
+## Basic Usage
+
+The auth-log package is designed to work seamlessly with the authorization packages:
+
+```typescript
+import { logAccessAttempt } from '@repo/auth-log';
+
+// Log an authorization attempt
+logAccessAttempt({
+  timestamp: new Date().toISOString(),
+  resource: 'article',
+  action: 'read',
+  context: { userId: '123', role: 'editor', tenantId: 'org-456' },
+  recordId: '789',
+  can: true
+});
+```
+
+## Configuration
+
+By default, logs are output to the console. You can configure the logging destination by setting the `AUTH_LOG_TARGET` environment variable:
+
+```bash
+# Log to console (default)
+AUTH_LOG_TARGET=console
+
+# Log to file
+AUTH_LOG_TARGET=file
+
+# Log to BetterStack
+AUTH_LOG_TARGET=betterstack
+BETTERSTACK_SOURCE_TOKEN=your_source_token
+```
+
+When logging to a file, entries are appended to `./logs/access.log` by default.
+
+When using BetterStack, you'll need to provide your source token via the `BETTERSTACK_SOURCE_TOKEN` environment variable.
+
+## Log Format
+
+Each log entry contains the following information:
+
+- `timestamp`: When the authorization attempt occurred
+- `resource`: The resource being accessed (e.g., 'article', 'user')
+- `action`: The action being performed (e.g., 'read', 'update')
+- `context`: User context information (userId, role, tenantId)
+- `recordId`: Optional ID of the specific record being accessed
+- `field`: Optional field name for field-level permissions
+- `can`: Boolean indicating whether access was granted
+- `reason`: Optional explanation for why access was denied
+
+## Integration with Authorization Packages
+
+The auth-log package is automatically integrated with the auth-runner package, which means all authorization checks performed through the runner will be logged without additional configuration.
+
+```typescript
+import { evaluateAccess } from '@repo/auth-runner/engine/evaluate';
+
+// This will automatically log the access attempt
+const result = evaluateAccess({
+  context: { userId: '123', role: 'editor', tenantId: 'org-456' },
+  resource: 'article',
+  action: 'update',
+  record: { id: '789', ownerId: '123' }
+});
+```
+
+## Available Adapters
+
+### Console Logger
+
+The default adapter that outputs logs to the console:
+
+```typescript
+// Set via environment variable
+AUTH_LOG_TARGET=console
+```
+
+### File Logger
+
+Writes logs to a file on disk:
+
+```typescript
+// Set via environment variable
+AUTH_LOG_TARGET=file
+```
+
+### BetterStack Logger
+
+Sends logs to BetterStack's logging service for centralized log management:
+
+```typescript
+// Set via environment variables
+AUTH_LOG_TARGET=betterstack
+BETTERSTACK_SOURCE_TOKEN=your_source_token
+```
+
+The BetterStack adapter enriches logs with additional metadata:
+- Sets log level to "info" for allowed access and "warn" for denied access
+- Creates a formatted message for better readability
+- Adds a service name for easier filtering
+
+## Custom Adapters
+
+You can create custom logging adapters by implementing the logger interface:
+
+```typescript
+const customLogger = {
+  write: (entry: AccessLogEntry) => {
+    // Custom logging logic here
+    // e.g., send to a third-party service
+  }
+};
+
+// Then register your custom logger in config.ts
+export function getActiveLogger() {
+  // Add your custom logger condition here
+  if (process.env.AUTH_LOG_TARGET === "custom") {
+    return customLogger;
+  }
+  
+  // Existing conditions...
+}
+```
+
+## Best Practices
+
+1. **Log all authorization attempts**: Enable comprehensive logging for security audits
+2. **Monitor denied access**: Pay special attention to denied access attempts
+3. **Rotate log files**: Implement log rotation for file-based logging
+4. **Protect sensitive information**: Be careful not to log sensitive user data
+5. **Review logs regularly**: Set up a process to review authorization logs

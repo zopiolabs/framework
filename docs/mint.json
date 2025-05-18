@@ -93,7 +93,10 @@
           "group": "Analytics",
           "pages": ["packages/analytics/web", "packages/analytics/product"]
         },
-        "packages/authentication",
+        {
+          "group": "Auth",
+          "pages": ["packages/authentication", "packages/authorization-rbac", "packages/authorization-abac", "packages/authorization-runner", "packages/authorization-hooks", "packages/authorization-log"]
+        },
         "packages/cms",
         "packages/collaboration",
         "packages/cron",
@@ -214,14 +217,22 @@
         "addons/fuse",
         "addons/motion",
         "addons/nuqs",
+        "addons/pdf-lib",
+        "addons/react-pdf",
         "addons/react-wrap-balancer",
-        "addons/zustand",
+        "addons/tiptap",
         "addons/next-safe-action"
       ]
     },
     {
       "group": "Tools",
-      "pages": ["addons/dub", "addons/metabase"]
+      "pages": [
+      "addons/dub",
+      "addons/infisical",
+      "addons/metabase",
+      "addons/tagui",
+      "addons/temporal-ui"
+      ]
     }
   ],
 
@@ -255,6 +266,10 @@
     {
       "source": "/authentication/better-auth",
       "destination": "/migrations/authentication/better-auth"
+    },
+    {
+      "source": "/auth-hooks",
+      "destination": "/packages/authorization-hooks"
     },
     {
       "source": "/bi/:slug*",

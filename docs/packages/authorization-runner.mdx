@@ -1,0 +1,202 @@
+---
+title: Authorization Runner
+description: Simplify authorization by combining RBAC and ABAC with the auth-runner package.
+---
+
+# Authorization Runner For Advanced Scenarios
+
+The `@repo/auth-runner` package provides a simplified interface for using both role-based (RBAC) and attribute-based (ABAC) access control together in your application. It serves as an integration layer that combines the functionality of both authorization systems.
+
+## Overview
+
+When implementing complex authorization systems, you often need to combine different authorization models. The `@repo/auth-runner` package makes this easy by:
+
+- Combining rules from both RBAC and ABAC systems
+- Providing a simplified API for authorization checks
+- Abstracting away the complexity of rule management
+
+## Installation
+
+The package is included in the zopio stack. If you need to install it separately:
+
+```bash
+pnpm add @repo/auth-runner
+```
+
+## Usage
+
+Using the auth-runner package is straightforward:
+
+```typescript
+import { evaluateAccess } from "@repo/auth-runner";
+
+// Check if a user has permission
+const result = evaluateAccess({
+  context: userContext,
+  resource: "documents",
+  action: "read",
+  record: document
+});
+
+if (result.can) {
+  // User has permission
+  // Proceed with the operation
+} else {
+  // Access denied
+  console.log(result.reason); // Optional reason for denial
+}
+```
+
+### With API Routes
+
+```typescript
+import { NextResponse } from "next/server";
+import { evaluateAccess } from "@repo/auth-runner";
+
+export async function GET(request) {
+  const userContext = await getUserContext(request);
+  const document = await getDocument(request);
+  
+  const result = evaluateAccess({
+    context: userContext,
+    resource: "documents",
+    action: "read",
+    record: document
+  });
+  
+  if (!result.can) {
+    return NextResponse.json(
+      { error: "Access denied", reason: result.reason },
+      { status: 403 }
+    );
+  }
+  
+  // Proceed with the operation
+  return NextResponse.json(document);
+}
+```
+
+### With React Components
+
+```tsx
+import { useEffect, useState } from "react";
+import { evaluateAccess } from "@repo/auth-runner";
+
+function DocumentViewer({ documentId }) {
+  const [document, setDocument] = useState(null);
+  const [canView, setCanView] = useState(false);
+  const userContext = useUserContext(); // Your hook to get user context
+  
+  useEffect(() => {
+    async function fetchDocument() {
+      const doc = await getDocument(documentId);
+      setDocument(doc);
+      
+      const result = evaluateAccess({
+        context: userContext,
+        resource: "documents",
+        action: "read",
+        record: doc
+      });
+      
+      setCanView(result.can);
+    }
+    
+    fetchDocument();
+  }, [documentId, userContext]);
+  
+  if (!document) return <div>Loading...</div>;
+  if (!canView) return <div>You don't have permission to view this document.</div>;
+  
+  return (
+    <div>
+      <h1>{document.title}</h1>
+      <p>{document.content}</p>
+    </div>
+  );
+}
+```
+
+## How It Works
+
+Under the hood, the auth-runner package:
+
+1. Imports rules from both `@repo/auth-rbac` and `@repo/auth-abac`
+2. Combines them into a single array of rules
+3. Uses the evaluation engine from `@repo/auth-rbac` to process these rules
+
+```typescript
+// This is simplified version of what happens internally
+import { rules as rbacRules } from "@repo/auth-rbac";
+import { abacRules } from "@repo/auth-abac";
+import { evaluateAccess as baseEvaluate } from "@repo/auth-rbac/engine/evaluate";
+
+const combinedRules = [...rbacRules, ...abacRules];
+
+export function evaluateAccess(params) {
+  return baseEvaluate({
+    rules: combinedRules,
+    ...params
+  });
+}
+```
+
+## Benefits of Using Auth Runner
+
+1. **Simplified API**: No need to manually combine rules or specify them with each evaluation
+2. **Consistent Authorization**: Ensures all parts of your application use the same combined rule set
+3. **Reduced Boilerplate**: Eliminates repetitive code for rule combination
+4. **Maintainability**: Changes to rules in either system are automatically reflected
+
+## Best Practices
+
+1. **Use auth-runner consistently**: Replace direct usage of auth-rbac or auth-abac with auth-runner throughout your application
+2. **Keep rule definitions separate**: Continue defining RBAC rules in auth-rbac and ABAC rules in auth-abac
+3. **Consider rule precedence**: Rules are evaluated in order, so be mindful of how they're combined
+4. **Test thoroughly**: Verify that the combined rules produce the expected authorization decisions
+
+## Example: Complete Authorization Flow
+
+Here's a complete example of how authorization works with auth-runner in a typical zopio application:
+
+1. Define your RBAC rules in auth-rbac (role-based permissions)
+2. Define your ABAC rules in auth-abac (attribute-based conditions)
+3. Use auth-runner to evaluate permissions throughout your application
+4. The auth-runner package automatically combines and evaluates all rules
+
+```typescript
+// In your API route or component
+import { evaluateAccess } from "@repo/auth-runner";
+
+// User context with both role and attribute information
+const userContext = {
+  userId: "user-123",
+  role: "editor",
+  tenantId: "org-456",
+  department: "marketing",
+  region: "europe"
+};
+
+// Resource with relevant attributes
+const document = {
+  id: "doc-789",
+  title: "Quarterly Report",
+  ownerId: "user-123",
+  department: "marketing",
+  confidential: false
+};
+
+// Simple permission check that evaluates both RBAC and ABAC rules
+const result = evaluateAccess({
+  context: userContext,
+  resource: "documents",
+  action: "update",
+  record: document
+});
+
+if (result.can) {
+  // Proceed with update
+}
+```
+
+This approach provides a clean, unified way to implement complex authorization logic that combines both role-based and attribute-based access control.

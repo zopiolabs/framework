@@ -1,0 +1,203 @@
+---
+title: Role-Based Auth
+description: Implement fine-grained authorization with the auth-rbac package.
+---
+
+# Role-Based Access Control (RBAC)
+
+The `@zopio/auth-rbac` package provides a flexible and powerful role-based access control system for your application. It allows you to define granular permission rules based on user roles, resources, actions, and even field-level permissions.
+
+## Overview
+
+RBAC (Role-Based Access Control) is an approach to restricting system access to authorized users based on their role within an organization. The `@zopio/auth-rbac` package extends the authentication capabilities provided by `@zopio/auth` with robust authorization features.
+
+Key features include:
+
+- **Resource and action-based permissions**: Control who can perform specific actions on resources
+- **Field-level permissions**: Define read/write access at the field level
+- **Conditional rules**: Apply complex logic to determine access rights
+- **DSL support**: Use a declarative syntax for defining access rules
+- **React hooks**: Easy integration with your frontend components
+- **Middleware**: Protect API routes with authorization checks
+
+## Installation
+
+The package is included by default in the zopio stack. If you need to install it separately:
+
+```bash
+pnpm add @zopio/auth-rbac
+```
+
+## Configuration
+
+### Defining Rules
+
+Authorization rules are defined in a central configuration file. Each rule specifies:
+
+- The **resource** being accessed (e.g., "orders", "users")
+- The **action** being performed (e.g., "read", "update", "delete")
+- Optional **condition** function that evaluates access based on user context and record data
+- Optional **field permissions** that specify read/write access to individual fields
+
+```typescript
+// Example rules configuration
+import { PermissionRule } from "@zopio/auth-rbac";
+
+export const rules: PermissionRule[] = [
+  {
+    resource: "orders",
+    action: "read",
+    condition: (ctx, record) => record.tenantId === ctx.tenantId,
+    fieldPermissions: {
+      id: "read",
+      total: "read",
+      cost: "none", // No access to this field
+    },
+  },
+  {
+    resource: "orders",
+    action: "update",
+    condition: (ctx, record) => record.createdBy === ctx.userId,
+    fieldPermissions: {
+      status: "write",
+      total: "none", // Cannot modify this field
+    },
+  },
+  {
+    resource: "users",
+    action: "invite",
+    condition: (ctx) => ctx.role === "admin",
+  },
+];
+```
+
+### Using the DSL (Domain Specific Language)
+
+For more complex access rules, you can use the DSL syntax instead of condition functions:
+
+```typescript
+{
+  resource: "projects",
+  action: "delete",
+  dsl: {
+    or: [
+      { equals: ["context.role", "admin"] },
+      { and: [
+        { equals: ["context.role", "manager"] },
+        { equals: ["record.createdBy", "context.userId"] }
+      ]}
+    ]
+  }
+}
+```
+
+## API Reference
+
+### Middleware
+
+Protect your API routes with the `withAuthorization` middleware:
+
+```typescript
+import { withAuthorization } from "@zopio/auth-rbac";
+
+export const GET = withAuthorization({
+  resource: "orders",
+  action: "read",
+})(async (req) => {
+  // This code only runs if the user has permission
+  const orders = await db.orders.findMany();
+  return Response.json(orders);
+});
+```
+
+### React Hooks
+
+Use the `useAccess` hook in your components to conditionally render UI elements based on permissions:
+
+```tsx
+import { useAccess } from "@zopio/auth-rbac";
+
+function OrderDetails({ order }) {
+  const { can } = useAccess({
+    resource: "orders",
+    action: "update",
+    record: order,
+  });
+
+  return (
+    <div>
+      <h1>Order #{order.id}</h1>
+      {can && (
+        <button onClick={handleEdit}>Edit Order</button>
+      )}
+    </div>
+  );
+}
+```
+
+For field-level permissions:
+
+```tsx
+function OrderForm({ order }) {
+  const { can: canEditStatus } = useAccess({
+    resource: "orders",
+    action: "update",
+    record: order,
+    field: "status",
+  });
+
+  return (
+    <form>
+      <select 
+        name="status" 
+        disabled={!canEditStatus}
+        defaultValue={order.status}
+      >
+        <option value="pending">Pending</option>
+        <option value="shipped">Shipped</option>
+        <option value="delivered">Delivered</option>
+      </select>
+    </form>
+  );
+}
+```
+
+## Integration with Clerk
+
+The package seamlessly integrates with Clerk authentication through the `@zopio/auth` package. The user context is automatically extracted from the Clerk session:
+
+```typescript
+// This is handled internally by the auth-rbac package
+export async function getUserContext(req: NextRequest): Promise<UserContext> {
+  const auth = getAuth(req);
+  if (!auth.userId || !auth.orgId || !auth.sessionClaims?.metadata?.role) {
+    throw new Error("Unauthorized or incomplete session");
+  }
+  return {
+    userId: auth.userId,
+    role: auth.sessionClaims.metadata.role,
+    tenantId: auth.orgId,
+  };
+}
+```
+
+## Best Practices
+
+1. **Define granular permissions**: Create specific rules for each resource and action combination
+2. **Use field-level permissions**: Control access to sensitive fields
+3. **Keep rules maintainable**: Group related rules and use comments to explain complex conditions
+4. **Test thoroughly**: Verify that your permission rules work as expected in all scenarios
+5. **Consider performance**: Complex rule evaluations can impact performance, so optimize where needed
+
+## Example: Complete Authorization Flow
+
+Here's a complete example of how authorization works in a typical zopio application:
+
+1. User authenticates with Clerk
+2. User makes a request to a protected API route
+3. The `withAuthorization` middleware extracts the user context from the Clerk session
+4. The middleware evaluates the permission rules against the user context and requested resource
+5. If authorized, the request proceeds; otherwise, a 401 or 403 response is returned
+6. On the frontend, components use the `useAccess` hook to conditionally render UI elements based on the user's permissions
+
+This flow ensures that authorization is consistently applied across both the backend and frontend of your application.

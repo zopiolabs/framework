@@ -1,0 +1,231 @@
+---
+title: Attribute-Based Auth
+description: Implement fine-grained attribute-based authorization with the auth-abac package.
+---
+
+# Attribute-Based Access Control (ABAC)
+
+The `@repo/auth-abac` package extends the role-based access control system provided by `@repo/auth-rbac` with attribute-based access control capabilities. This allows for even more granular and dynamic permission rules based on attributes of users, resources, and the environment.
+
+## Overview
+
+ABAC (Attribute-Based Access Control) is an authorization model that evaluates permissions based on attributes associated with the user, the resource, the action, and the environment. Unlike RBAC, which assigns permissions based solely on roles, ABAC allows for more context-aware and fine-grained access decisions.
+
+Key features include:
+
+- **Attribute-based conditions**: Define access rules based on user and resource attributes
+- **Seamless integration with RBAC**: Combine with existing role-based rules
+- **Flexible rule evaluation**: Apply complex logic using user context and resource data
+- **Scalable authorization logic**: Create modular and maintainable permission rules
+
+## Installation
+
+The package is included in the zopio stack. If you need to install it separately:
+
+```bash
+pnpm add @repo/auth-abac
+```
+
+## Configuration
+
+### Defining ABAC Rules
+
+ABAC rules follow the same structure as RBAC rules but focus on attribute-based conditions:
+
+```typescript
+import { PermissionRule } from "@repo/auth-rbac";
+
+export const abacRules: PermissionRule[] = [
+  {
+    resource: "invoices",
+    action: "read",
+    condition: (ctx, record) => ctx.region === record.region
+  },
+  {
+    resource: "payments",
+    action: "approve",
+    condition: (ctx, record) => ctx.clearanceLevel >= 3
+  }
+];
+```
+
+### Combining with RBAC Rules
+
+You can combine ABAC rules with existing RBAC rules for a comprehensive authorization strategy:
+
+```typescript
+import { rules as rbacRules } from "@repo/auth-rbac";
+import { abacRules } from "@repo/auth-abac";
+
+export const combinedRules = [...rbacRules, ...abacRules];
+```
+
+Then use the combined rules with the existing evaluation engine:
+
+```typescript
+import { evaluateAccess } from "@repo/auth-rbac";
+
+const result = evaluateAccess({
+  rules: combinedRules,
+  context: userContext,
+  resource: "invoices",
+  action: "read",
+  record: invoice
+});
+
+if (result.can) {
+  // User has permission to read this invoice
+}
+```
+
+## Common ABAC Patterns
+
+### Resource Ownership
+
+Restrict access to resources based on ownership:
+
+```typescript
+{
+  resource: "documents",
+  action: "update",
+  condition: (ctx, record) => record.ownerId === ctx.userId
+}
+```
+
+### Geographic Restrictions
+
+Limit access based on geographic location:
+
+```typescript
+{
+  resource: "content",
+  action: "view",
+  condition: (ctx, record) => record.allowedRegions.includes(ctx.region)
+}
+```
+
+### Time-Based Access
+
+Grant access only during specific time periods:
+
+```typescript
+{
+  resource: "system",
+  action: "maintenance",
+  condition: (ctx) => {
+    const currentHour = new Date().getHours();
+    return currentHour >= 22 || currentHour < 6; // Only during off-hours
+  }
+}
+```
+
+### Security Clearance Levels
+
+Implement hierarchical security clearances:
+
+```typescript
+{
+  resource: "classified",
+  action: "read",
+  condition: (ctx, record) => ctx.clearanceLevel >= record.requiredClearance
+}
+```
+
+## Best Practices
+
+1. **Balance RBAC and ABAC**: Use RBAC for coarse-grained permissions and ABAC for fine-grained control
+2. **Keep conditions simple**: Complex conditions can be difficult to maintain and debug
+3. **Consider performance**: Evaluate the performance impact of complex attribute checks
+4. **Test thoroughly**: Create comprehensive tests for your authorization rules
+5. **Document attributes**: Maintain clear documentation of all attributes used in access decisions
+
+## Example: Complete ABAC Implementation
+
+Here's a complete example of implementing ABAC in a zopio application:
+
+```typescript
+// Define user context type with additional attributes
+type EnhancedUserContext = {
+  userId: string;
+  role: string;
+  tenantId: string;
+  department: string;
+  region: string;
+  clearanceLevel: number;
+};
+
+// Define ABAC rules
+const abacRules: PermissionRule[] = [
+  {
+    resource: "reports",
+    action: "view",
+    condition: (ctx: EnhancedUserContext, record) => {
+      // Department-specific reports
+      if (record.departmentOnly) {
+        return ctx.department === record.department;
+      }
+      
+      // Region-restricted reports
+      if (record.regionRestricted) {
+        return record.allowedRegions.includes(ctx.region);
+      }
+      
+      // Classified reports
+      if (record.classification) {
+        return ctx.clearanceLevel >= record.classification;
+      }
+      
+      return true; // No restrictions
+    }
+  }
+];
+
+// Combine with existing RBAC rules
+import { rules as rbacRules } from "./rbacRules";
+export const combinedRules = [...rbacRules, ...abacRules];
+```
+
+## Integration with Middleware and Hooks
+
+The ABAC rules work seamlessly with the existing middleware and hooks from `@repo/auth-rbac`:
+
+```typescript
+import { withAuthorization } from "@repo/auth-rbac";
+import { combinedRules } from "./authRules";
+
+// API route protection with combined RBAC and ABAC rules
+export const GET = withAuthorization({
+  resource: "reports",
+  action: "view",
+  rules: combinedRules
+})(async (req) => {
+  // This code only runs if the user has permission
+  const reports = await db.reports.findMany();
+  return Response.json(reports);
+});
+```
+
+```tsx
+import { useAccess } from "@repo/auth-rbac";
+import { combinedRules } from "./authRules";
+
+function ReportViewer({ report }) {
+  const { can } = useAccess({
+    rules: combinedRules,
+    resource: "reports",
+    action: "view",
+    record: report
+  });
+
+  if (!can) {
+    return <p>You don't have permission to view this report.</p>;
+  }
+
+  return (
+    <div>
+      <h1>{report.title}</h1>
+      <p>{report.content}</p>
+    </div>
+  );
+}
+```
