@@ -1,0 +1,634 @@
+---
+title: Build a Real-time Chat Application
+description: Learn how to create a real-time chat application using zopio and the collaboration package.
+---
+
+In this guide, we'll build a real-time chat application using zopio's built-in collaboration package. You'll learn how to implement real-time messaging, user presence, and message history.
+
+## 1. Create a new project
+
+```bash Terminal
+npx zopio@latest init chat-app
+```
+
+This will create a new project with the name `chat-app` and install the necessary dependencies.
+
+## 2. Configure your environment variables
+
+Follow the guide on [Environment Variables](/setup/env) to set up your environment variables.
+
+For a chat application, you'll need to set up the following variables:
+
+```bash .env
+DATABASE_URL="your-database-url"
+NEXT_PUBLIC_SOCKET_URL="your-socket-url"
+```
+
+## 3. Set up the database schema
+
+Let's create the database schema for our chat application. We'll need tables for channels, messages, and user presence.
+
+```tsx packages/database/schema/chat.ts
+import { relations } from 'drizzle-orm';
+import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { users } from './auth';
+
+export const channels = pgTable('channels', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const channelsRelations = relations(channels, ({ many }) => ({
+  messages: many(messages),
+  members: many(channelMembers),
+}));
+
+export const channelMembers = pgTable('channel_members', {
+  channelId: uuid('channel_id')
+    .notNull()
+    .references(() => channels.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  joinedAt: timestamp('joined_at').defaultNow().notNull(),
+});
+
+export const channelMembersRelations = relations(channelMembers, ({ one }) => ({
+  channel: one(channels, {
+    fields: [channelMembers.channelId],
+    references: [channels.id],
+  }),
+  user: one(users, {
+    fields: [channelMembers.userId],
+    references: [users.id],
+  }),
+}));
+
+export const messages = pgTable('messages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  content: text('content').notNull(),
+  channelId: uuid('channel_id')
+    .notNull()
+    .references(() => channels.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  channel: one(channels, {
+    fields: [messages.channelId],
+    references: [channels.id],
+  }),
+  user: one(users, {
+    fields: [messages.userId],
+    references: [users.id],
+  }),
+}));
+
+export const presence = pgTable('presence', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  status: text('status').notNull().default('online'),
+  lastSeen: timestamp('last_seen').defaultNow().notNull(),
+});
+
+export const presenceRelations = relations(presence, ({ one }) => ({
+  user: one(users, {
+    fields: [presence.userId],
+    references: [users.id],
+  }),
+}));
+```
+
+## 4. Implement real-time messaging
+
+Now, let's implement the real-time messaging functionality using the collaboration package.
+
+### 4.1 Set up the Socket.IO server
+
+First, let's create a Socket.IO server to handle real-time communication:
+
+```tsx apps/app/app/api/socket/route.ts
+import { createSocketServer } from '@repo/collaboration/server';
+import { db } from '@repo/database';
+import { auth } from '@repo/auth/server';
+import { messages, presence } from '@repo/database/schema/chat';
+import { eq } from 'drizzle-orm';
+
+const socketServer = createSocketServer({
+  async onConnection(socket, request) {
+    try {
+      // Authenticate the user
+      const { userId } = await auth();
+      
+      if (!userId) {
+        socket.disconnect(true);
+        return;
+      }
+      
+      // Store user ID in socket data
+      socket.data.userId = userId;
+      
+      // Update user presence
+      await db
+        .insert(presence)
+        .values({
+          userId,
+          status: 'online',
+          lastSeen: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: presence.userId,
+          set: {
+            status: 'online',
+            lastSeen: new Date(),
+          },
+        });
+      
+      // Broadcast user online status
+      socket.broadcast.emit('presence:update', {
+        userId,
+        status: 'online',
+      });
+      
+      // Handle joining channels
+      socket.on('channel:join', (channelId) => {
+        socket.join(`channel:${channelId}`);
+      });
+      
+      // Handle leaving channels
+      socket.on('channel:leave', (channelId) => {
+        socket.leave(`channel:${channelId}`);
+      });
+      
+      // Handle new messages
+      socket.on('message:send', async (data) => {
+        const { channelId, content } = data;
+        
+        // Save message to database
+        const [newMessage] = await db
+          .insert(messages)
+          .values({
+            channelId,
+            userId,
+            content,
+          })
+          .returning();
+        
+        // Broadcast message to channel
+        socket.to(`channel:${channelId}`).emit('message:new', newMessage);
+      });
+      
+      // Handle disconnect
+      socket.on('disconnect', async () => {
+        await db
+          .update(presence)
+          .set({
+            status: 'offline',
+            lastSeen: new Date(),
+          })
+          .where(eq(presence.userId, userId));
+        
+        // Broadcast user offline status
+        socket.broadcast.emit('presence:update', {
+          userId,
+          status: 'offline',
+        });
+      });
+    } catch (error) {
+      console.error('Socket connection error:', error);
+      socket.disconnect(true);
+    }
+  },
+});
+
+export const GET = socketServer.handler;
+export const POST = socketServer.handler;
+```
+
+### 4.2 Create the client-side socket connection
+
+Next, let's create a hook to manage the socket connection on the client side:
+
+```tsx apps/app/lib/use-socket.ts
+'use client';
+
+import { useEffect, useState } from 'react';
+import { io, Socket } from 'socket.io-client';
+
+let socket: Socket | null = null;
+
+export function useSocket() {
+  const [isConnected, setIsConnected] = useState(false);
+
+  useEffect(() => {
+    // Initialize socket connection if it doesn't exist
+    if (!socket) {
+      socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || '', {
+        path: '/api/socket',
+        autoConnect: true,
+      });
+    }
+
+    // Set up event listeners
+    const onConnect = () => {
+      setIsConnected(true);
+    };
+
+    const onDisconnect = () => {
+      setIsConnected(false);
+    };
+
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+
+    // Connect if not already connected
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    // Clean up event listeners on unmount
+    return () => {
+      socket?.off('connect', onConnect);
+      socket?.off('disconnect', onDisconnect);
+    };
+  }, []);
+
+  return { socket, isConnected };
+}
+```
+
+### 4.3 Create the chat components
+
+Let's create the components for our chat interface. First, let's create a component for the channel list:
+
+```tsx apps/app/app/(authenticated)/chat/components/channel-list.tsx
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@repo/design-system/components/ui/button';
+import { PlusIcon } from 'lucide-react';
+import { CreateChannelDialog } from './create-channel-dialog';
+
+type Channel = {
+  id: string;
+  name: string;
+  description: string | null;
+};
+
+type ChannelListProps = {
+  initialChannels: Channel[];
+  activeChannelId?: string;
+};
+
+export function ChannelList({ initialChannels, activeChannelId }: ChannelListProps) {
+  const [channels, setChannels] = useState<Channel[]>(initialChannels);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const router = useRouter();
+
+  const handleChannelSelect = (channelId: string) => {
+    router.push(`/chat/${channelId}`);
+  };
+
+  const handleCreateChannel = async (name: string, description?: string) => {
+    try {
+      const response = await fetch('/api/channels', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, description }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create channel');
+      }
+
+      const newChannel = await response.json();
+      setChannels((prev) => [...prev, newChannel]);
+      setIsDialogOpen(false);
+      router.push(`/chat/${newChannel.id}`);
+    } catch (error) {
+      console.error('Error creating channel:', error);
+    }
+  };
+
+  return (
+    <div className="w-64 border-r h-full flex flex-col">
+      <div className="p-4 border-b flex items-center justify-between">
+        <h2 className="font-semibold">Channels</h2>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsDialogOpen(true)}
+        >
+          <PlusIcon className="h-4 w-4" />
+        </Button>
+      </div>
+      <div className="flex-1 overflow-auto">
+        <ul className="space-y-1 p-2">
+          {channels.map((channel) => (
+            <li key={channel.id}>
+              <Button
+                variant={channel.id === activeChannelId ? 'secondary' : 'ghost'}
+                className="w-full justify-start"
+                onClick={() => handleChannelSelect(channel.id)}
+              >
+                # {channel.name}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <CreateChannelDialog
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        onCreateChannel={handleCreateChannel}
+      />
+    </div>
+  );
+}
+```
+
+Now, let's create the chat interface component:
+
+```tsx apps/app/app/(authenticated)/chat/[channelId]/components/chat-interface.tsx
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { useSocket } from '@/lib/use-socket';
+import { Button } from '@repo/design-system/components/ui/button';
+import { Input } from '@repo/design-system/components/ui/input';
+import { SendIcon } from 'lucide-react';
+import { MessageList } from './message-list';
+import { useRouter } from 'next/navigation';
+
+type Message = {
+  id: string;
+  content: string;
+  userId: string;
+  channelId: string;
+  createdAt: string;
+  user: {
+    name: string;
+    image: string | null;
+  };
+};
+
+type ChatInterfaceProps = {
+  channelId: string;
+  initialMessages: Message[];
+  currentUserId: string;
+};
+
+export function ChatInterface({
+  channelId,
+  initialMessages,
+  currentUserId,
+}: ChatInterfaceProps) {
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [messageInput, setMessageInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { socket, isConnected } = useSocket();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  // Join channel on mount and leave on unmount
+  useEffect(() => {
+    if (socket && isConnected) {
+      socket.emit('channel:join', channelId);
+
+      // Listen for new messages
+      const handleNewMessage = (newMessage: Message) => {
+        setMessages((prev) => [...prev, newMessage]);
+      };
+
+      socket.on('message:new', handleNewMessage);
+
+      return () => {
+        socket.emit('channel:leave', channelId);
+        socket.off('message:new', handleNewMessage);
+      };
+    }
+  }, [socket, isConnected, channelId]);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSendMessage = () => {
+    if (!messageInput.trim() || !socket || !isConnected) return;
+
+    setIsLoading(true);
+    
+    // Emit message to server
+    socket.emit('message:send', {
+      channelId,
+      content: messageInput.trim(),
+    });
+
+    setMessageInput('');
+    setIsLoading(false);
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto p-4">
+        <MessageList messages={messages} currentUserId={currentUserId} />
+        <div ref={messagesEndRef} />
+      </div>
+      <div className="border-t p-4">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSendMessage();
+          }}
+          className="flex gap-2"
+        >
+          <Input
+            value={messageInput}
+            onChange={(e) => setMessageInput(e.target.value)}
+            placeholder="Type a message..."
+            disabled={!isConnected || isLoading}
+          />
+          <Button
+            type="submit"
+            size="icon"
+            disabled={!isConnected || isLoading || !messageInput.trim()}
+          >
+            <SendIcon className="h-4 w-4" />
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+}
+```
+
+Let's create the message list component:
+
+```tsx apps/app/app/(authenticated)/chat/[channelId]/components/message-list.tsx
+'use client';
+
+import { Avatar, AvatarFallback, AvatarImage } from '@repo/design-system/components/ui/avatar';
+import { formatDistanceToNow } from 'date-fns';
+
+type Message = {
+  id: string;
+  content: string;
+  userId: string;
+  channelId: string;
+  createdAt: string;
+  user: {
+    name: string;
+    image: string | null;
+  };
+};
+
+type MessageListProps = {
+  messages: Message[];
+  currentUserId: string;
+};
+
+export function MessageList({ messages, currentUserId }: MessageListProps) {
+  if (messages.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-muted-foreground">No messages yet. Start the conversation!</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {messages.map((message) => {
+        const isCurrentUser = message.userId === currentUserId;
+        const initials = message.user.name
+          .split(' ')
+          .map((n) => n[0])
+          .join('')
+          .toUpperCase();
+
+        return (
+          <div
+            key={message.id}
+            className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
+          >
+            <div className={`flex ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'} gap-2 max-w-[80%]`}>
+              <Avatar className="h-8 w-8">
+                {message.user.image && (
+                  <AvatarImage src={message.user.image} alt={message.user.name} />
+                )}
+                <AvatarFallback>{initials}</AvatarFallback>
+              </Avatar>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">{message.user.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
+                  </span>
+                </div>
+                <div className={`mt-1 rounded-lg p-3 ${isCurrentUser ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                  {message.content}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+```
+
+## 7. Add internationalization support
+
+Let's add internationalization support to our chat application using the internationalization package. First, let's create translation files for our supported locales.
+
+```json dictionaries/en.json
+{
+  "chat": {
+    "welcome": "Welcome to Chat",
+    "select_channel": "Select a channel from the sidebar or create a new one to start chatting.",
+    "channels": "Channels",
+    "no_messages": "No messages yet. Start the conversation!",
+    "type_message": "Type a message...",
+    "create_channel": "Create Channel",
+    "channel_name": "Channel Name",
+    "channel_description": "Channel Description (optional)",
+    "create": "Create",
+    "cancel": "Cancel"
+  }
+}
+```
+
+```json dictionaries/tr.json
+{
+  "chat": {
+    "welcome": "Sohbete Hoş Geldiniz",
+    "select_channel": "Sohbet etmeye başlamak için kenar çubuğundan bir kanal seçin veya yeni bir kanal oluşturun.",
+    "channels": "Kanallar",
+    "no_messages": "Henüz mesaj yok. Konuşmayı başlat!",
+    "type_message": "Bir mesaj yazın...",
+    "create_channel": "Kanal Oluştur",
+    "channel_name": "Kanal Adı",
+    "channel_description": "Kanal Açıklaması (isteğe bağlı)",
+    "create": "Oluştur",
+    "cancel": "İptal"
+  }
+}
+```
+
+Then, update our components to use the translations:
+
+```tsx apps/app/app/(authenticated)/chat/page.tsx
+import { Button } from '@repo/design-system/components/ui/button';
+import { MessageSquareIcon } from 'lucide-react';
+import Link from 'next/link';
+import { getDictionary } from '@repo/internationalization';
+
+export default async function ChatIndexPage() {
+  const dict = await getDictionary();
+
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="text-center space-y-4">
+        <MessageSquareIcon className="h-12 w-12 mx-auto text-muted-foreground" />
+        <h1 className="text-2xl font-bold">{dict.chat.welcome}</h1>
+        <p className="text-muted-foreground">
+          {dict.chat.select_channel}
+        </p>
+      </div>
+    </div>
+  );
+}
+```
+
+## 8. Run the application
+
+Now you can run your chat application:
+
+```bash Terminal
+pnpm dev --filter app
+```
+
+Visit [http://localhost:3000/chat](http://localhost:3000/chat) to see your chat application in action.
+
+## Next Steps
+
+- Add typing indicators to show when users are typing
+- Implement read receipts for messages
+- Add support for file attachments and rich media
+- Implement direct messaging between users
+- Add notifications for new messages
+
+You've successfully built a real-time chat application using zopio and the collaboration package! If you have any questions, please reach out to us on [Twitter](https://x.com/zopiolabs) or open an issue on [GitHub](https://github.com/zopiolabs/zopio).

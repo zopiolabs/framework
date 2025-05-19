@@ -1,0 +1,786 @@
+---
+title: Build a Subscription SaaS Application
+description: Learn how to build a subscription-based SaaS application using zopio and the payments package.
+---
+
+In this guide, we'll build a subscription-based SaaS application using zopio's built-in payments package. You'll learn how to implement subscription plans, handle payments, and manage user access to premium features.
+
+## 1. Create a new project
+
+```bash Terminal
+npx zopio@latest init subscription-saas
+```
+
+This will create a new project with the name `subscription-saas` and install the necessary dependencies.
+
+## 2. Configure your environment variables
+
+Follow the guide on [Environment Variables](/setup/env) to set up your environment variables.
+
+For a subscription SaaS application, you'll need to set up the following variables:
+
+```bash .env
+DATABASE_URL="your-database-url"
+STRIPE_SECRET_KEY="your-stripe-secret-key"
+STRIPE_WEBHOOK_SECRET="your-stripe-webhook-secret"
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="your-stripe-publishable-key"
+```
+
+## 3. Set up the database schema
+
+Let's create the database schema for our subscription SaaS application. We'll need tables for subscriptions, plans, and features.
+
+```tsx packages/database/schema/subscriptions.ts
+import { relations } from 'drizzle-orm';
+import { pgTable, text, timestamp, uuid, boolean, integer } from 'drizzle-orm/pg-core';
+import { users } from './auth';
+
+export const plans = pgTable('plans', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  stripePriceId: text('stripe_price_id').notNull(),
+  stripeProductId: text('stripe_product_id').notNull(),
+  price: integer('price').notNull(),
+  interval: text('interval').notNull(), // 'month' or 'year'
+  active: boolean('active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const plansRelations = relations(plans, ({ many }) => ({
+  features: many(planFeatures),
+  subscriptions: many(subscriptions),
+}));
+
+export const features = pgTable('features', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  key: text('key').notNull().unique(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const featuresRelations = relations(features, ({ many }) => ({
+  plans: many(planFeatures),
+}));
+
+export const planFeatures = pgTable('plan_features', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  planId: uuid('plan_id')
+    .notNull()
+    .references(() => plans.id, { onDelete: 'cascade' }),
+  featureId: uuid('feature_id')
+    .notNull()
+    .references(() => features.id, { onDelete: 'cascade' }),
+  limit: integer('limit'), // null means unlimited
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const planFeaturesRelations = relations(planFeatures, ({ one }) => ({
+  plan: one(plans, {
+    fields: [planFeatures.planId],
+    references: [plans.id],
+  }),
+  feature: one(features, {
+    fields: [planFeatures.featureId],
+    references: [features.id],
+  }),
+}));
+
+export const subscriptions = pgTable('subscriptions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  planId: uuid('plan_id')
+    .notNull()
+    .references(() => plans.id),
+  stripeSubscriptionId: text('stripe_subscription_id').notNull(),
+  stripeCustomerId: text('stripe_customer_id').notNull(),
+  status: text('status').notNull(), // 'active', 'canceled', 'past_due', etc.
+  currentPeriodStart: timestamp('current_period_start').notNull(),
+  currentPeriodEnd: timestamp('current_period_end').notNull(),
+  cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+  user: one(users, {
+    fields: [subscriptions.userId],
+    references: [users.id],
+  }),
+  plan: one(plans, {
+    fields: [subscriptions.planId],
+    references: [plans.id],
+  }),
+}));
+```
+
+## 4. Set up the payments package
+
+Let's configure the payments package to handle subscriptions and payments.
+
+### 4.1 Create the Stripe client
+
+```tsx packages/payments/stripe-client.ts
+import Stripe from 'stripe';
+
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2023-10-16',
+  typescript: true,
+});
+```
+
+### 4.2 Create the subscription service
+
+```tsx packages/payments/subscription-service.ts
+import { db } from '@repo/database';
+import { plans, subscriptions, features, planFeatures } from '@repo/database/schema/subscriptions';
+import { eq, and, gte } from 'drizzle-orm';
+import { stripe } from './stripe-client';
+
+export class SubscriptionService {
+  // Check if a user has access to a specific feature
+  async hasAccess(userId: string, featureKey: string): Promise<boolean> {
+    try {
+      // Get the user's active subscription
+      const userSubscription = await db.query.subscriptions.findFirst({
+        where: and(
+          eq(subscriptions.userId, userId),
+          eq(subscriptions.status, 'active'),
+          gte(subscriptions.currentPeriodEnd, new Date())
+        ),
+        with: {
+          plan: {
+            with: {
+              features: {
+                with: {
+                  feature: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!userSubscription) {
+        return false;
+      }
+
+      // Check if the feature is included in the plan
+      const hasFeature = userSubscription.plan.features.some(
+        (planFeature) => planFeature.feature.key === featureKey
+      );
+
+      return hasFeature;
+    } catch (error) {
+      console.error('Error checking feature access:', error);
+      return false;
+    }
+  }
+
+  // Create a checkout session for a subscription
+  async createCheckoutSession({
+    userId,
+    planId,
+    successUrl,
+    cancelUrl,
+  }: {
+    userId: string;
+    planId: string;
+    successUrl: string;
+    cancelUrl: string;
+  }) {
+    try {
+      // Get the plan
+      const plan = await db.query.plans.findFirst({
+        where: eq(plans.id, planId),
+      });
+
+      if (!plan) {
+        throw new Error('Plan not found');
+      }
+
+      // Check if user already has a Stripe customer ID
+      const existingSubscription = await db.query.subscriptions.findFirst({
+        where: eq(subscriptions.userId, userId),
+      });
+
+      let customerId = existingSubscription?.stripeCustomerId;
+
+      // If no customer ID exists, create a new customer
+      if (!customerId) {
+        const user = await db.query.users.findFirst({
+          where: eq(users.id, userId),
+        });
+
+        if (!user) {
+          throw new Error('User not found');
+        }
+
+        const customer = await stripe.customers.create({
+          email: user.email,
+          name: user.name || undefined,
+          metadata: {
+            userId,
+          },
+        });
+
+        customerId = customer.id;
+      }
+
+      // Create a checkout session
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        line_items: [
+          {
+            price: plan.stripePriceId,
+            quantity: 1,
+          },
+        ],
+        mode: 'subscription',
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        metadata: {
+          userId,
+          planId,
+        },
+      });
+
+      return { sessionId: session.id, url: session.url };
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      throw error;
+    }
+  }
+
+  // Handle webhook events from Stripe
+  async handleWebhookEvent(event: any) {
+    try {
+      switch (event.type) {
+        case 'checkout.session.completed':
+          await this.handleCheckoutSessionCompleted(event.data.object);
+          break;
+        case 'customer.subscription.updated':
+          await this.handleSubscriptionUpdated(event.data.object);
+          break;
+        case 'customer.subscription.deleted':
+          await this.handleSubscriptionDeleted(event.data.object);
+          break;
+      }
+    } catch (error) {
+      console.error('Error handling webhook event:', error);
+      throw error;
+    }
+  }
+
+  private async handleCheckoutSessionCompleted(session: any) {
+    const { userId, planId } = session.metadata;
+    const subscription = await stripe.subscriptions.retrieve(session.subscription);
+
+    await db.insert(subscriptions).values({
+      userId,
+      planId,
+      stripeSubscriptionId: subscription.id,
+      stripeCustomerId: subscription.customer as string,
+      status: subscription.status,
+      currentPeriodStart: new Date(subscription.current_period_start * 1000),
+      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+      cancelAtPeriodEnd: subscription.cancel_at_period_end,
+    });
+  }
+
+  private async handleSubscriptionUpdated(subscription: any) {
+    await db
+      .update(subscriptions)
+      .set({
+        status: subscription.status,
+        currentPeriodStart: new Date(subscription.current_period_start * 1000),
+        currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+        cancelAtPeriodEnd: subscription.cancel_at_period_end,
+        updatedAt: new Date(),
+      })
+      .where(eq(subscriptions.stripeSubscriptionId, subscription.id));
+  }
+
+  private async handleSubscriptionDeleted(subscription: any) {
+    await db
+      .update(subscriptions)
+      .set({
+        status: 'canceled',
+        updatedAt: new Date(),
+      })
+      .where(eq(subscriptions.stripeSubscriptionId, subscription.id));
+  }
+}
+
+export const subscriptionService = new SubscriptionService();
+```
+
+## 5. Create the API routes
+
+Let's create the API routes for handling subscriptions and webhooks.
+
+### 5.1 Create the checkout API route
+
+```tsx apps/app/app/api/subscriptions/checkout/route.ts
+import { auth } from '@repo/auth/server';
+import { subscriptionService } from '@repo/payments/subscription-service';
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function POST(req: NextRequest) {
+  try {
+    const { userId } = await auth();
+
+    if (!userId) {
+      return new NextResponse('Unauthorized', { status: 401 });
+    }
+
+    const { planId } = await req.json();
+
+    if (!planId) {
+      return new NextResponse('Plan ID is required', { status: 400 });
+    }
+
+    const origin = req.headers.get('origin') || 'http://localhost:3000';
+    const successUrl = `${origin}/dashboard?checkout=success`;
+    const cancelUrl = `${origin}/pricing?checkout=canceled`;
+
+    const { sessionId, url } = await subscriptionService.createCheckoutSession({
+      userId,
+      planId,
+      successUrl,
+      cancelUrl,
+    });
+
+    return NextResponse.json({ sessionId, url });
+  } catch (error) {
+    console.error('Error creating checkout session:', error);
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
+}
+```
+
+### 5.2 Create the webhook API route
+
+```tsx apps/app/app/api/webhooks/stripe/route.ts
+import { subscriptionService } from '@repo/payments/subscription-service';
+import { stripe } from '@repo/payments/stripe-client';
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.text();
+    const signature = req.headers.get('stripe-signature');
+
+    if (!signature) {
+      return new NextResponse('Signature is required', { status: 400 });
+    }
+
+    const event = stripe.webhooks.constructEvent(
+      body,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET!
+    );
+
+    await subscriptionService.handleWebhookEvent(event);
+
+    return new NextResponse(null, { status: 200 });
+  } catch (error) {
+    console.error('Error handling webhook:', error);
+    return new NextResponse('Webhook Error', { status: 400 });
+  }
+}
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+```
+
+## 6. Create the pricing page
+
+Let's create a pricing page to display the available subscription plans.
+
+```tsx apps/app/app/(authenticated)/pricing/page.tsx
+import { auth } from '@repo/auth/server';
+import { db } from '@repo/database';
+import { plans, subscriptions } from '@repo/database/schema/subscriptions';
+import { eq } from 'drizzle-orm';
+import { notFound } from 'next/navigation';
+import { PricingPlans } from './components/pricing-plans';
+import { Header } from '../components/header';
+
+export default async function PricingPage() {
+  const { userId } = await auth();
+
+  if (!userId) {
+    notFound();
+  }
+
+  // Fetch all active plans
+  const activePlans = await db.query.plans.findMany({
+    where: eq(plans.active, true),
+    with: {
+      features: {
+        with: {
+          feature: true,
+        },
+      },
+    },
+  });
+
+  // Fetch user's active subscription
+  const userSubscription = await db.query.subscriptions.findFirst({
+    where: eq(subscriptions.userId, userId),
+    with: {
+      plan: true,
+    },
+  });
+
+  return (
+    <div className="space-y-8">
+      <Header pages={['Dashboard']} page="Pricing" />
+      <div className="container py-8">
+        <div className="text-center space-y-4 mb-12">
+          <h1 className="text-4xl font-bold">Choose Your Plan</h1>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            Select the plan that best fits your needs. All plans include access to our core features.
+          </p>
+        </div>
+        <PricingPlans
+          plans={activePlans}
+          currentPlanId={userSubscription?.planId}
+          userId={userId}
+        />
+      </div>
+    </div>
+  );
+}
+```
+
+## 7. Create the pricing components
+
+Let's create the components for displaying and subscribing to plans.
+
+```tsx apps/app/app/(authenticated)/pricing/components/pricing-plans.tsx
+'use client';
+
+import { useState } from 'react';
+import { Button } from '@repo/design-system/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@repo/design-system/components/ui/card';
+import { CheckIcon, XIcon } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+
+type Feature = {
+  id: string;
+  name: string;
+  description: string | null;
+  key: string;
+};
+
+type PlanFeature = {
+  id: string;
+  planId: string;
+  featureId: string;
+  limit: number | null;
+  feature: Feature;
+};
+
+type Plan = {
+  id: string;
+  name: string;
+  description: string | null;
+  stripePriceId: string;
+  stripeProductId: string;
+  price: number;
+  interval: string;
+  features: PlanFeature[];
+};
+
+type PricingPlansProps = {
+  plans: Plan[];
+  currentPlanId?: string;
+  userId: string;
+};
+
+export function PricingPlans({ plans, currentPlanId, userId }: PricingPlansProps) {
+  const [isLoading, setIsLoading] = useState<string | null>(null);
+  const router = useRouter();
+
+  const handleSubscribe = async (planId: string) => {
+    try {
+      setIsLoading(planId);
+
+      const response = await fetch('/api/subscriptions/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ planId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session');
+      }
+
+      const { url } = await response.json();
+
+      // Redirect to Stripe Checkout
+      window.location.href = url;
+    } catch (error) {
+      console.error('Error subscribing to plan:', error);
+    } finally {
+      setIsLoading(null);
+    }
+  };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(price / 100);
+  };
+
+  return (
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {plans.map((plan) => {
+        const isCurrentPlan = plan.id === currentPlanId;
+
+        return (
+          <Card key={plan.id} className={isCurrentPlan ? 'border-primary' : ''}>
+            <CardHeader>
+              <CardTitle>{plan.name}</CardTitle>
+              <CardDescription>{plan.description}</CardDescription>
+              <div className="mt-4">
+                <span className="text-3xl font-bold">{formatPrice(plan.price)}</span>
+                <span className="text-muted-foreground">/{plan.interval}</span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2">
+                {plan.features.map((planFeature) => (
+                  <li key={planFeature.id} className="flex items-center">
+                    <CheckIcon className="h-5 w-5 text-green-500 mr-2" />
+                    <span>
+                      {planFeature.feature.name}
+                      {planFeature.limit && ` (${planFeature.limit})`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+            <CardFooter>
+              <Button
+                className="w-full"
+                onClick={() => handleSubscribe(plan.id)}
+                disabled={isLoading === plan.id || isCurrentPlan}
+                variant={isCurrentPlan ? 'outline' : 'default'}
+              >
+                {isLoading === plan.id
+                  ? 'Loading...'
+                  : isCurrentPlan
+                  ? 'Current Plan'
+                  : 'Subscribe'}
+              </Button>
+            </CardFooter>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+```
+
+## 8. Create a feature access hook
+
+Let's create a hook to check if a user has access to specific features.
+
+```tsx packages/payments/use-feature-access.ts
+'use client';
+
+import { useEffect, useState } from 'react';
+
+export function useFeatureAccess(featureKey: string) {
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const checkAccess = async () => {
+      try {
+        const response = await fetch(`/api/features/access?key=${featureKey}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to check feature access');
+        }
+        
+        const { hasAccess } = await response.json();
+        setHasAccess(hasAccess);
+      } catch (error) {
+        console.error('Error checking feature access:', error);
+        setHasAccess(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    checkAccess();
+  }, [featureKey]);
+  
+  return { hasAccess, isLoading };
+}
+```
+
+## 9. Create the feature access API route
+
+```tsx apps/app/app/api/features/access/route.ts
+import { auth } from '@repo/auth/server';
+import { subscriptionService } from '@repo/payments/subscription-service';
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function GET(req: NextRequest) {
+  try {
+    const { userId } = await auth();
+
+    if (!userId) {
+      return NextResponse.json({ hasAccess: false });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const featureKey = searchParams.get('key');
+
+    if (!featureKey) {
+      return new NextResponse('Feature key is required', { status: 400 });
+    }
+
+    const hasAccess = await subscriptionService.hasAccess(userId, featureKey);
+
+    return NextResponse.json({ hasAccess });
+  } catch (error) {
+    console.error('Error checking feature access:', error);
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
+}
+```
+
+## 10. Add internationalization support
+
+Let's add internationalization support to our subscription SaaS application using the internationalization package. First, let's create translation files for our supported locales.
+
+```json dictionaries/en.json
+{
+  "pricing": {
+    "title": "Choose Your Plan",
+    "subtitle": "Select the plan that best fits your needs. All plans include access to our core features.",
+    "subscribe": "Subscribe",
+    "current_plan": "Current Plan",
+    "per_month": "/month",
+    "per_year": "/year"
+  }
+}
+```
+
+```json dictionaries/tr.json
+{
+  "pricing": {
+    "title": "Planınızı Seçin",
+    "subtitle": "İhtiyaçlarınıza en uygun planı seçin. Tüm planlar temel özelliklerimize erişim içerir.",
+    "subscribe": "Abone Ol",
+    "current_plan": "Mevcut Plan",
+    "per_month": "/ay",
+    "per_year": "/yıl"
+  }
+}
+```
+
+Then, update our components to use the translations:
+
+```tsx apps/app/app/(authenticated)/pricing/page.tsx
+import { auth } from '@repo/auth/server';
+import { db } from '@repo/database';
+import { plans, subscriptions } from '@repo/database/schema/subscriptions';
+import { eq } from 'drizzle-orm';
+import { notFound } from 'next/navigation';
+import { PricingPlans } from './components/pricing-plans';
+import { Header } from '../components/header';
+import { getDictionary } from '@repo/internationalization';
+
+export default async function PricingPage() {
+  const { userId } = await auth();
+  const dict = await getDictionary();
+
+  if (!userId) {
+    notFound();
+  }
+
+  // Fetch all active plans
+  const activePlans = await db.query.plans.findMany({
+    where: eq(plans.active, true),
+    with: {
+      features: {
+        with: {
+          feature: true,
+        },
+      },
+    },
+  });
+
+  // Fetch user's active subscription
+  const userSubscription = await db.query.subscriptions.findFirst({
+    where: eq(subscriptions.userId, userId),
+    with: {
+      plan: true,
+    },
+  });
+
+  return (
+    <div className="space-y-8">
+      <Header pages={['Dashboard']} page="Pricing" />
+      <div className="container py-8">
+        <div className="text-center space-y-4 mb-12">
+          <h1 className="text-4xl font-bold">{dict.pricing.title}</h1>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            {dict.pricing.subtitle}
+          </p>
+        </div>
+        <PricingPlans
+          plans={activePlans}
+          currentPlanId={userSubscription?.planId}
+          userId={userId}
+          translations={{
+            subscribe: dict.pricing.subscribe,
+            currentPlan: dict.pricing.current_plan,
+            perMonth: dict.pricing.per_month,
+            perYear: dict.pricing.per_year,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+```
+
+## 11. Run the application
+
+Now you can run your subscription SaaS application:
+
+```bash Terminal
+pnpm dev --filter app
+```
+
+Visit [http://localhost:3000/pricing](http://localhost:3000/pricing) to see your subscription plans.
+
+## Next Steps
+
+- Implement a dashboard to show subscription status and usage metrics
+- Add the ability to upgrade/downgrade plans
+- Implement usage tracking for metered features
+- Add invoice history and payment management
+- Implement trial periods for new users
+
+You've successfully built a subscription SaaS application using zopio and the payments package! If you have any questions, please reach out to us on [Twitter](https://x.com/zopiolabs) or open an issue on [GitHub](https://github.com/zopiolabs/zopio).
