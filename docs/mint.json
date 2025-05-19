@@ -76,6 +76,18 @@
       "pages": ["setup/prerequisites", "setup/installation", "setup/env"]
     },
     {
+      "group": "CLI",
+      "icon": "terminal",
+      "pages": [
+        "cli/overview",
+        "cli/commands",
+        "cli/internationalization",
+        "cli/plugins",
+        "cli/advanced-usage",
+        "cli/troubleshooting"
+      ]
+    },
+    {
       "group": "Internationalization",
       "icon": "language",
       "pages": [

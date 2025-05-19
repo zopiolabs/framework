@@ -2,17 +2,20 @@
   "name": "zopio-cli",
   "version": "0.1.0",
   "bin": {
-    "zopio": "./bin/zopio.ts"
+    "zopio": "./zopio.js"
   },
   "type": "module",
   "scripts": {
-    "dev": "tsx ./bin/zopio.ts"
+    "dev": "node ./zopio.js",
+    "build": "node ./scripts/build.js"
   },
   "dependencies": {
-    "commander": "^11.0.0"
+    "commander": "^11.0.0",
+    "chalk": "^5.3.0",
+    "inquirer": "^9.2.10",
+    "ora": "^7.0.1"
   },
   "devDependencies": {
-    "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "esbuild": "^0.19.5"
   }
 }

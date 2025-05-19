@@ -1,0 +1,281 @@
+---
+title: 'Advanced Usage'
+description: 'Advanced techniques for using the Zopio CLI'
+icon: 'code'
+---
+
+# Advanced Usage
+
+This guide covers advanced techniques and features of the Zopio CLI for experienced users.
+
+## Environment Variables
+
+The CLI respects the following environment variables to customize its behavior:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZOPIO_CONFIG_PATH` | Custom path to the configuration file | `zopio.config.js` |
+| `ZOPIO_LOCALE` | Override the default locale | `en` |
+| `ZOPIO_PLUGINS_DIR` | Additional directory to load plugins from | None |
+| `ZOPIO_TEMPLATES_DIR` | Custom templates directory | None |
+
+Example usage:
+
+```bash
+# Use a custom config file
+ZOPIO_CONFIG_PATH=./custom-config.js zopio init
+
+# Set Turkish as the default locale for all commands
+ZOPIO_LOCALE=tr zopio generate i18n user-messages
+```
+
+## Custom Templates
+
+You can create custom templates for code generation by adding files to:
+
+- `<project>/.zopio/templates/`
+- `$HOME/.zopio/templates/`
+
+### Example: Custom Component Template
+
+Create a file at `.zopio/templates/component-with-form.js`:
+
+```javascript
+export default function componentWithFormTemplate(name, options = {}) {
+  const { withI18n = false } = options;
+  
+  if (withI18n) {
+    return `'use client';
+
+import { useTranslations } from 'next-intl';
+import { useState } from 'react';
+
+export default function ${name}({ className }) {
+  const t = useTranslations('${name.toLowerCase()}');
+  const [formData, setFormData] = useState({});
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    console.log('Form submitted:', formData);
+  };
+  
+  return (
+    <div className={className}>
+      <h2>{t('title')}</h2>
+      <form onSubmit={handleSubmit}>
+        <label>
+          {t('nameLabel')}
+          <input 
+            type="text" 
+            onChange={(e) => setFormData({...formData, name: e.target.value})}
+          />
+        </label>
+        <button type="submit">{t('submit')}</button>
+      </form>
+    </div>
+  );
+}
+`;
+  }
+  
+  // Non-i18n version
+  return `'use client';
+
+import { useState } from 'react';
+
+export default function ${name}({ className }) {
+  const [formData, setFormData] = useState({});
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    console.log('Form submitted:', formData);
+  };
+  
+  return (
+    <div className={className}>
+      <h2>${name}</h2>
+      <form onSubmit={handleSubmit}>
+        <label>
+          Name:
+          <input 
+            type="text" 
+            onChange={(e) => setFormData({...formData, name: e.target.value})}
+          />
+        </label>
+        <button type="submit">Submit</button>
+      </form>
+    </div>
+  );
+}
+`;
+}
+```
+
+Then use your custom template:
+
+```bash
+zopio component UserForm --template component-with-form --i18n
+```
+
+## Configuration File
+
+The `zopio.config.js` file allows you to customize the CLI's behavior for your project:
+
+```javascript
+// zopio.config.js
+export default {
+  // Project information
+  project: {
+    name: "my-zopio-app",
+    version: "0.1.0"
+  },
+  
+  // Internationalization settings
+  i18n: {
+    defaultLocale: "en",
+    locales: ["en", "tr", "es", "de", "fr"],
+    localeDetection: true,
+    // Directories where translation files are stored
+    directories: {
+      dictionaries: "dictionaries", // For next-international
+      locales: "locales"            // For next-intl
+    }
+  },
+  
+  // Build settings
+  build: {
+    target: "es2020",
+    minify: true,
+    sourcemap: true
+  },
+  
+  // Plugin settings
+  plugins: {
+    // Plugin-specific configuration
+    "i18n-tools": {
+      analyzeOnBuild: true
+    }
+  }
+};
+```
+
+## Scripting with the CLI
+
+You can use the CLI in scripts to automate common tasks:
+
+### Example: Setup Script
+
+```bash
+#!/bin/bash
+
+# Initialize a new project
+zopio init --locale en
+
+# Create core modules
+zopio generate core auth
+zopio generate core users
+zopio generate core products
+
+# Create components with i18n support
+zopio component Header --i18n
+zopio component Footer --i18n
+zopio component ProductCard --i18n
+
+# Create i18n namespaces
+zopio i18n --create common
+zopio i18n --create products
+zopio i18n --create auth
+
+# Add additional locales
+zopio i18n --add fr
+zopio i18n --add ja
+
+# Initialize configuration
+zopio config --init
+```
+
+## Working with Background Jobs
+
+The CLI provides advanced features for working with background jobs:
+
+### Creating Jobs with Custom Schedules
+
+```bash
+zopio jobs --create email-notifications --schedule "0 9 * * *"
+```
+
+This creates a job that runs at 9 AM every day.
+
+### Internationalized Job Messages
+
+When creating jobs with the CLI, status messages are automatically generated in all supported locales:
+
+```javascript
+// Status messages in different languages
+const statusMessages = {
+  en: {
+    success: 'Job completed successfully',
+    running: 'Job is running',
+    failed: 'Job failed'
+  },
+  tr: {
+    success: 'İş başarıyla tamamlandı',
+    running: 'İş çalışıyor',
+    failed: 'İş başarısız oldu'
+  },
+  // Additional languages...
+};
+```
+
+This ensures that job status messages are properly localized based on the user's locale.
+
+## Advanced Internationalization Techniques
+
+### Managing Translation Workflows
+
+For larger teams, you can use the CLI to manage translation workflows:
+
+1. Extract new translation keys:
+   ```bash
+   zopio i18n --extract
+   ```
+
+2. Analyze translation coverage:
+   ```bash
+   zopio i18n-analyze
+   ```
+
+3. Generate a report of missing translations:
+   ```bash
+   zopio i18n-analyze --output missing-translations.csv
+   ```
+
+4. After translations are completed, synchronize keys:
+   ```bash
+   zopio i18n-sync
+   ```
+
+### Working with Multiple Locale Sets
+
+For applications that need different sets of locales for different sections:
+
+```javascript
+// In zopio.config.js
+export default {
+  i18n: {
+    defaultLocale: "en",
+    locales: ["en", "tr", "es", "de"],
+    // Additional locale sets
+    localeSets: {
+      admin: ["en", "tr"],
+      marketing: ["en", "tr", "es", "de", "fr", "it"]
+    }
+  }
+};
+```
+
+Then specify the locale set when generating components:
+
+```bash
+zopio component AdminDashboard --i18n --locale-set admin
+```

@@ -1,0 +1,167 @@
+---
+title: 'CLI Internationalization'
+description: 'Managing translations and locales with the Zopio CLI'
+icon: 'language'
+---
+
+# Internationalization Support
+
+The Zopio CLI provides comprehensive internationalization (i18n) support to help you manage translations and locales in your application. This guide explains how to use the CLI's i18n features effectively.
+
+## Supported Locales
+
+Based on the project configuration, the Zopio CLI supports the following locales out of the box:
+
+- English (en) - Default locale
+- Turkish (tr)
+- Spanish (es)
+- German (de)
+
+## Framework Integration
+
+The CLI integrates with both internationalization frameworks used in Zopio:
+
+- **next-international**: Used for middleware and server-side translations
+- **next-intl**: Used for client-side translations
+
+This dual integration ensures a seamless experience regardless of which part of your application needs translation support.
+
+## Directory Structure
+
+The CLI manages translations in two primary locations:
+
+```
+project/
+├── dictionaries/     # For next-international
+│   ├── en/          # English translations
+│   ├── tr/          # Turkish translations
+│   ├── es/          # Spanish translations
+│   └── de/          # German translations
+└── locales/         # For next-intl
+    ├── en.json      # English translations
+    ├── tr.json      # Turkish translations
+    ├── es.json      # Spanish translations
+    └── de.json      # German translations
+```
+
+## Configuration Files
+
+The CLI works with two main configuration files:
+
+- **i18nConfig.ts**: Main configuration file for internationalization settings
+- **languine.json**: Additional configuration for advanced i18n features
+
+## CLI Commands for Internationalization
+
+### Listing Available Locales
+
+```bash
+zopio i18n --list
+```
+
+This command displays all supported locales in your project and indicates the default locale.
+
+### Adding a New Locale
+
+```bash
+zopio i18n --add fr
+```
+
+This command:
+1. Adds the new locale to your i18nConfig.ts file
+2. Creates the necessary directory structure in dictionaries/
+3. Creates the locale file in locales/
+4. Copies translation templates from the default locale
+
+### Creating Translation Namespaces
+
+```bash
+zopio i18n --create user-profile
+```
+
+This command creates translation files for a specific namespace across all supported locales:
+- In dictionaries/: Creates `<locale>/user-profile.json` files
+- In locales/: Adds a `user-profile` section to each locale file
+
+### Extracting Translation Keys
+
+```bash
+zopio i18n --extract
+```
+
+This command scans your codebase for translation keys and updates your translation files accordingly.
+
+## Advanced Internationalization Tools
+
+The CLI includes advanced tools for managing translations through its plugin system:
+
+### Analyzing Translation Coverage
+
+```bash
+zopio i18n-analyze
+```
+
+This command analyzes your translation files and provides a coverage report showing:
+- Missing translation keys in each locale
+- Overall translation coverage percentage
+- File-by-file breakdown of translation status
+
+### Synchronizing Translation Keys
+
+```bash
+zopio i18n-sync
+```
+
+This command synchronizes translation keys across all locales:
+- Adds missing keys to all locale files
+- Marks untranslated keys for easy identification
+- Preserves existing translations
+
+Use the `--dry-run` flag to preview changes without modifying files:
+
+```bash
+zopio i18n-sync --dry-run
+```
+
+## Internationalization in Generated Code
+
+When generating components or modules with i18n support, the CLI automatically:
+
+1. Adds the necessary imports for translation functions
+2. Sets up translation hooks in components
+3. Creates translation namespace files for all supported locales
+4. Provides placeholder translations in each language
+
+### Example: Generating an i18n Component
+
+```bash
+zopio component UserProfile --i18n
+```
+
+This generates a component with built-in translation support:
+
+```jsx
+'use client';
+
+import { useTranslations } from 'next-intl';
+
+export default function UserProfile({ className }) {
+  const t = useTranslations('userprofile');
+  
+  return (
+    <div className={className}>
+      <h2>{t('title')}</h2>
+      <p>{t('description')}</p>
+    </div>
+  );
+}
+```
+
+And creates corresponding translation files for all supported locales.
+
+## Best Practices
+
+- Use the `--i18n` flag when generating components that need translation support
+- Create dedicated namespaces for different sections of your application
+- Run `zopio i18n-analyze` regularly to identify missing translations
+- Use `zopio i18n-sync` to keep translation files in sync across locales

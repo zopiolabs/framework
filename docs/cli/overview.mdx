@@ -1,0 +1,63 @@
+---
+title: 'CLI Overview'
+description: 'Introduction to the Zopio CLI tool'
+icon: 'terminal'
+---
+
+# Zopio CLI
+
+The Zopio CLI is a powerful command-line interface designed to streamline development workflows when building applications with the Zopio framework. It provides a comprehensive set of tools for project initialization, code generation, internationalization management, and more.
+
+## Key Features
+
+- **Project Initialization**: Quickly bootstrap new Zopio projects with the recommended structure
+- **Code Generation**: Generate modules, components, and other code artifacts with best practices built in
+- **Internationalization Support**: Manage translations and locales for your application
+- **Configuration Management**: Easily configure your Zopio projects
+- **Background Jobs**: Create and manage background jobs with internationalization support
+- **Plugin System**: Extend the CLI with custom plugins
+
+## Installation
+
+```bash
+# Install globally
+npm install -g zopio-cli
+
+# Or use with npx
+npx zopio-cli [command]
+```
+
+## Basic Usage
+
+```bash
+# Initialize a new project
+zopio init
+
+# Generate a new component with i18n support
+zopio component UserProfile --i18n
+
+# Add a new locale
+zopio i18n --add fr
+
+# Create a new background job
+zopio jobs --create user-notifications
+```
+
+## Architecture
+
+The Zopio CLI follows a modular architecture that makes it easy to extend and customize:
+
+```
+framework/cli/
+├── commands/        # Command implementations
+├── templates/       # Code templates
+├── utils/           # Helper utilities
+├── plugins/         # Plugin system
+└── zopio.js         # Main entry point
+```
+
+## Next Steps
+
+- Learn about [CLI Commands](/cli/commands) to understand the available functionality
+- Explore [Internationalization Support](/cli/internationalization) to manage translations
+- Check out [Plugin Development](/cli/plugins) to extend the CLI
