@@ -1,0 +1,372 @@
+---
+title: 'Actions'
+description: 'Available actions for trigger rules'
+icon: 'play'
+---
+
+# Actions
+
+Actions define what happens when a trigger rule's conditions are met. The `@repo/trigger-rules` package supports various action types that can be performed in response to events.
+
+## Action Structure
+
+An action has the following structure:
+
+```typescript
+interface Action {
+  type: string;           // The type of action to perform
+  [key: string]: any;     // Additional properties specific to the action type
+}
+```
+
+Each action type has its own set of required and optional properties.
+
+## Available Action Types
+
+### Email Actions
+
+Send emails to users or administrators:
+
+```json
+{
+  "type": "email",
+  "template": "welcome-email",
+  "recipient": "{{user.email}}",
+  "subject": "Welcome to our platform!",
+  "data": {
+    "userName": "{{user.name}}",
+    "companyName": "Zopio"
+  }
+}
+```
+
+| Property | Description | Required |
+| --- | --- | --- |
+| `template` | Email template ID | Yes |
+| `recipient` | Email recipient | Yes |
+| `subject` | Email subject | No (can be defined in template) |
+| `data` | Template variables | No |
+| `cc` | Carbon copy recipients | No |
+| `bcc` | Blind carbon copy recipients | No |
+
+### Notification Actions
+
+Send notifications to users or teams:
+
+```json
+{
+  "type": "notification",
+  "target": "admin",
+  "channel": "slack",
+  "message": "New user signed up: {{user.email}}",
+  "priority": "high"
+}
+```
+
+| Property | Description | Required |
+| --- | --- | --- |
+| `target` | Notification target (user ID, role, or team) | Yes |
+| `channel` | Notification channel (slack, email, in-app) | Yes |
+| `message` | Notification message | Yes |
+| `priority` | Notification priority (low, medium, high) | No |
+| `data` | Additional data for the notification | No |
+
+### Webhook Actions
+
+Send HTTP requests to external services:
+
+```json
+{
+  "type": "webhook",
+  "url": "https://api.example.com/webhook",
+  "method": "POST",
+  "headers": {
+    "Authorization": "Bearer {{env.API_KEY}}",
+    "Content-Type": "application/json"
+  },
+  "payload": {
+    "event": "user_created",
+    "userId": "{{user.id}}",
+    "timestamp": "{{now}}"
+  }
+}
+```
+
+| Property | Description | Required |
+| --- | --- | --- |
+| `url` | Webhook URL | Yes |
+| `method` | HTTP method (GET, POST, PUT, DELETE) | Yes |
+| `headers` | HTTP headers | No |
+| `payload` | Request payload | No |
+| `timeout` | Request timeout in milliseconds | No |
+
+### Function Actions
+
+Execute a JavaScript function:
+
+```json
+{
+  "type": "function",
+  "name": "processUserData",
+  "args": {
+    "userId": "{{user.id}}",
+    "data": "{{user}}"
+  }
+}
+```
+
+| Property | Description | Required |
+| --- | --- | --- |
+| `name` | Function name (must be registered) | Yes |
+| `args` | Function arguments | No |
+
+Functions must be registered before they can be used:
+
+```typescript
+import { registerFunction } from "@repo/trigger-rules";
+
+registerFunction("processUserData", async (args) => {
+  const { userId, data } = args;
+  // Process user data
+  return { success: true };
+});
+```
+
+### Database Actions
+
+Perform database operations:
+
+```json
+{
+  "type": "database",
+  "operation": "update",
+  "table": "users",
+  "where": {
+    "id": "{{user.id}}"
+  },
+  "data": {
+    "lastActive": "{{now}}",
+    "status": "active"
+  }
+}
+```
+
+| Property | Description | Required |
+| --- | --- | --- |
+| `operation` | Database operation (insert, update, delete, query) | Yes |
+| `table` | Database table name | Yes |
+| `where` | Condition for update/delete/query | Depends on operation |
+| `data` | Data for insert/update | Depends on operation |
+| `returning` | Fields to return | No |
+
+### Event Actions
+
+Trigger another event:
+
+```json
+{
+  "type": "event",
+  "name": "user.profile.updated",
+  "payload": {
+    "userId": "{{user.id}}",
+    "changes": "{{event.changes}}"
+  }
+}
+```
+
+| Property | Description | Required |
+| --- | --- | --- |
+| `name` | Event name | Yes |
+| `payload` | Event payload | Yes |
+| `delay` | Delay in milliseconds before triggering | No |
+
+### Log Actions
+
+Log information for debugging or auditing:
+
+```json
+{
+  "type": "log",
+  "level": "info",
+  "message": "User {{user.id}} triggered rule {{rule.id}}",
+  "data": {
+    "user": "{{user}}",
+    "timestamp": "{{now}}"
+  }
+}
+```
+
+| Property | Description | Required |
+| --- | --- | --- |
+| `level` | Log level (debug, info, warn, error) | Yes |
+| `message` | Log message | Yes |
+| `data` | Additional data to log | No |
+
+## Template Variables
+
+Actions support template variables that are replaced with values from the event data or environment:
+
+### Event Data Variables
+
+Access event data using the `{{field.path}}` syntax:
+
+```json
+{
+  "type": "email",
+  "recipient": "{{user.email}}",
+  "subject": "Welcome, {{user.name}}!"
+}
+```
+
+### Special Variables
+
+Special variables provide access to system values:
+
+| Variable | Description | Example |
+| --- | --- | --- |
+| `{{now}}` | Current timestamp | `"timestamp": "{{now}}"` |
+| `{{rule.id}}` | Current rule ID | `"ruleId": "{{rule.id}}"` |
+| `{{rule.name}}` | Current rule name | `"ruleName": "{{rule.name}}"` |
+| `{{env.VARIABLE}}` | Environment variable | `"apiKey": "{{env.API_KEY}}"` |
+
+## Internationalization Support
+
+Actions can include internationalization support for messages and content:
+
+```json
+{
+  "type": "notification",
+  "target": "user",
+  "channel": "in-app",
+  "message": {
+    "en": "Welcome to our platform!",
+    "es": "¡Bienvenido a nuestra plataforma!",
+    "fr": "Bienvenue sur notre plateforme !"
+  }
+}
+```
+
+The appropriate message will be selected based on the user's locale or system default.
+
+## Custom Action Types
+
+You can extend the rule engine with custom action types by registering them:
+
+```typescript
+import { registerActionType } from "@repo/trigger-rules";
+
+// Register a custom action type
+registerActionType("sms", async (action, context) => {
+  const { to, message } = action;
+  const phoneNumber = resolveTemplate(to, context);
+  const smsMessage = resolveTemplate(message, context);
+  
+  // Send SMS using your SMS provider
+  await smsService.send(phoneNumber, smsMessage);
+  
+  return { success: true };
+});
+
+// Now you can use it in your rules
+const rule = {
+  // ...
+  "actions": [
+    {
+      "type": "sms",
+      "to": "{{user.phoneNumber}}",
+      "message": "Welcome to our platform, {{user.name}}!"
+    }
+  ]
+  // ...
+};
+```
+
+## Action Execution
+
+Actions are executed in the order they are defined in the rule. If an action fails, subsequent actions will still be executed unless you configure the rule to stop on failure.
+
+To configure failure behavior:
+
+```json
+{
+  "type": "webhook",
+  "url": "https://api.example.com/webhook",
+  "method": "POST",
+  "payload": {
+    "event": "user_created",
+    "userId": "{{user.id}}"
+  },
+  "stopOnFailure": true
+}
+```
+
+## Best Practices
+
+1. **Keep actions focused** - Each action should have a clear, specific purpose
+2. **Use template variables** - Make your actions dynamic with template variables
+3. **Handle failures** - Consider what should happen if an action fails
+4. **Test thoroughly** - Validate your actions with different inputs
+5. **Use internationalization** - Support multiple languages where appropriate
+
+## Examples
+
+### Send Welcome Email and Notify Sales Team
+
+```json
+{
+  "actions": [
+    {
+      "type": "email",
+      "template": "welcome-email",
+      "recipient": "{{user.email}}",
+      "data": {
+        "userName": "{{user.name}}",
+        "planName": "{{user.plan.name}}"
+      }
+    },
+    {
+      "type": "notification",
+      "target": "sales",
+      "channel": "slack",
+      "message": "New user signed up: {{user.email}} ({{user.plan.name}} plan)"
+    }
+  ]
+}
+```
+
+### Update User Status and Log Activity
+
+```json
+{
+  "actions": [
+    {
+      "type": "database",
+      "operation": "update",
+      "table": "users",
+      "where": {
+        "id": "{{user.id}}"
+      },
+      "data": {
+        "status": "active",
+        "lastLoginAt": "{{now}}"
+      }
+    },
+    {
+      "type": "log",
+      "level": "info",
+      "message": "User {{user.id}} logged in",
+      "data": {
+        "userId": "{{user.id}}",
+        "timestamp": "{{now}}",
+        "ip": "{{event.ip}}"
+      }
+    }
+  ]
+}
+```
+
+## Next Steps
+
+- Learn about [Rule Management](/packages/trigger-rules/management) techniques
+- Explore [Testing Rules](/packages/trigger-rules/testing) effectively
+- See how to integrate with [Trigger.dev](/packages/trigger)

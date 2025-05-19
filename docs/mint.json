@@ -198,6 +198,18 @@
             "packages/trigger/events"
           ]
         },
+        {
+          "group": "Trigger Rules",
+          "icon": "filter",
+          "pages": [
+            "packages/trigger-rules",
+            "packages/trigger-rules/structure",
+            "packages/trigger-rules/conditions",
+            "packages/trigger-rules/actions",
+            "packages/trigger-rules/management",
+            "packages/trigger-rules/testing"
+          ]
+        },
         "packages/webhooks"
       ]
     },

@@ -1,0 +1,409 @@
+---
+title: 'Rule Management'
+description: 'Best practices for managing trigger rules'
+icon: 'folder-tree'
+---
+
+# Rule Management
+
+Effective management of trigger rules is essential for maintaining a scalable and maintainable event-driven system. This guide covers best practices and techniques for organizing, versioning, and managing your rules.
+
+## Rule Organization
+
+### Directory Structure
+
+For larger applications, organize your rules into a logical directory structure:
+
+```
+rules/
+  user/
+    onboarding.json
+    notifications.json
+  payment/
+    processing.json
+    refunds.json
+  document/
+    sharing.json
+    collaboration.json
+```
+
+### Rule Categorization
+
+Use tags to categorize rules for easier filtering and management:
+
+```json
+{
+  "id": "premium-user-welcome",
+  "name": "Premium User Welcome",
+  "tags": ["user", "onboarding", "premium", "email"]
+}
+```
+
+### Rule Namespaces
+
+Consider using namespaces in your rule IDs to avoid conflicts:
+
+```json
+{
+  "id": "user:onboarding:welcome-email",
+  "name": "User Welcome Email"
+}
+```
+
+## Loading Rules
+
+### From Files
+
+Load rules from JSON files:
+
+```typescript
+import { loadRulesFromFile } from "@repo/trigger-rules";
+
+// Load rules from a single file
+const userRules = await loadRulesFromFile("./rules/user-rules.json");
+
+// Load rules from multiple files
+const allRules = await loadRulesFromDirectory("./rules");
+```
+
+### From Database
+
+For dynamic applications, store and load rules from a database:
+
+```typescript
+import { db } from "@repo/database";
+import { rules } from "@repo/database/schema/rules";
+
+// Load rules from database
+const dbRules = await db.select().from(rules).where(eq(rules.enabled, true));
+
+// Convert to JSONRule format
+const jsonRules = dbRules.map(rule => ({
+  id: rule.id,
+  name: rule.name,
+  description: rule.description,
+  event: rule.event,
+  condition: JSON.parse(rule.condition),
+  actions: JSON.parse(rule.actions),
+  priority: rule.priority,
+  enabled: rule.enabled,
+  tags: rule.tags ? rule.tags.split(",") : []
+}));
+```
+
+## Rule Validation
+
+### Schema Validation
+
+Validate rules against a JSON schema to ensure they are well-formed:
+
+```typescript
+import { validateRule } from "@repo/trigger-rules";
+
+// Validate a single rule
+const isValid = validateRule(rule);
+if (!isValid) {
+  console.error("Invalid rule:", validateRule.errors);
+}
+
+// Validate multiple rules
+const invalidRules = rules.filter(rule => !validateRule(rule));
+```
+
+### Testing Rules
+
+Create unit tests for your rules to ensure they behave as expected:
+
+```typescript
+import { evaluateRule } from "@repo/trigger-rules";
+
+// Test a rule with sample data
+test("Premium user welcome rule", async () => {
+  const rule = {
+    id: "premium-user-welcome",
+    event: "user.created",
+    condition: {
+      field: "user.plan",
+      operator: "equals",
+      value: "premium"
+    },
+    actions: [
+      {
+        type: "email",
+        template: "premium-welcome"
+      }
+    ]
+  };
+  
+  const premiumUser = {
+    user: {
+      id: "123",
+      email: "user@example.com",
+      plan: "premium"
+    }
+  };
+  
+  const freeUser = {
+    user: {
+      id: "456",
+      email: "free@example.com",
+      plan: "free"
+    }
+  };
+  
+  // Should match premium user
+  const result1 = await evaluateRule(rule, premiumUser);
+  expect(result1.matched).toBe(true);
+  
+  // Should not match free user
+  const result2 = await evaluateRule(rule, freeUser);
+  expect(result2.matched).toBe(false);
+});
+```
+
+## Rule Versioning
+
+### Version Control
+
+Store your rules in version control to track changes over time:
+
+```bash
+git add rules/
+git commit -m "Update premium user onboarding rules"
+```
+
+### Rule Migrations
+
+For database-stored rules, implement a migration system:
+
+```typescript
+import { db } from "@repo/database";
+import { migrations } from "@repo/database/schema/rule-migrations";
+
+// Apply a rule migration
+async function applyRuleMigration(version, changes) {
+  await db.transaction(async (tx) => {
+    // Apply changes to rules
+    for (const change of changes) {
+      if (change.type === "create") {
+        await tx.insert(rules).values(change.rule);
+      } else if (change.type === "update") {
+        await tx.update(rules)
+          .set(change.updates)
+          .where(eq(rules.id, change.ruleId));
+      } else if (change.type === "delete") {
+        await tx.delete(rules)
+          .where(eq(rules.id, change.ruleId));
+      }
+    }
+    
+    // Record migration
+    await tx.insert(migrations).values({
+      version,
+      appliedAt: new Date()
+    });
+  });
+}
+```
+
+## Rule Administration
+
+### Rule Dashboard
+
+Create an administration interface for managing rules:
+
+- View all rules with filtering and sorting
+- Enable/disable rules
+- Edit rule conditions and actions
+- View rule execution history and statistics
+
+### Rule Audit Log
+
+Maintain an audit log of rule changes:
+
+```typescript
+async function updateRule(ruleId, updates, userId) {
+  const oldRule = await db.query.rules.findFirst({
+    where: eq(rules.id, ruleId)
+  });
+  
+  // Update the rule
+  await db.update(rules)
+    .set(updates)
+    .where(eq(rules.id, ruleId));
+  
+  // Record the change
+  await db.insert(ruleChanges).values({
+    ruleId,
+    userId,
+    timestamp: new Date(),
+    oldValue: JSON.stringify(oldRule),
+    newValue: JSON.stringify({ ...oldRule, ...updates })
+  });
+}
+```
+
+## Performance Optimization
+
+### Rule Indexing
+
+Index rules by event type for faster lookup:
+
+```typescript
+function indexRulesByEvent(rules) {
+  const ruleIndex = new Map();
+  
+  for (const rule of rules) {
+    if (!ruleIndex.has(rule.event)) {
+      ruleIndex.set(rule.event, []);
+    }
+    
+    ruleIndex.get(rule.event).push(rule);
+  }
+  
+  return ruleIndex;
+}
+
+// Usage
+const ruleIndex = indexRulesByEvent(rules);
+const matchingRules = ruleIndex.get("user.created") || [];
+```
+
+### Rule Caching
+
+Cache rules to avoid reloading them for every event:
+
+```typescript
+import { createRuleCache } from "@repo/trigger-rules";
+
+const ruleCache = createRuleCache({
+  ttl: 60 * 1000, // 1 minute TTL
+  maxSize: 1000   // Maximum number of rules to cache
+});
+
+// Get rules from cache or load them
+async function getRules(event) {
+  const cacheKey = `rules:${event}`;
+  
+  let rules = ruleCache.get(cacheKey);
+  if (!rules) {
+    rules = await loadRulesForEvent(event);
+    ruleCache.set(cacheKey, rules);
+  }
+  
+  return rules;
+}
+```
+
+## Rule Monitoring
+
+### Execution Metrics
+
+Collect metrics on rule execution:
+
+```typescript
+async function evaluateRulesWithMetrics(event, payload) {
+  const startTime = performance.now();
+  const rules = await getRulesForEvent(event);
+  
+  let matchedCount = 0;
+  let actionCount = 0;
+  
+  for (const rule of rules) {
+    const result = await evaluateRule(rule, payload);
+    
+    if (result.matched) {
+      matchedCount++;
+      actionCount += rule.actions.length;
+    }
+  }
+  
+  const duration = performance.now() - startTime;
+  
+  // Record metrics
+  await recordMetrics({
+    event,
+    rulesEvaluated: rules.length,
+    rulesMatched: matchedCount,
+    actionsExecuted: actionCount,
+    duration
+  });
+}
+```
+
+### Error Handling
+
+Implement robust error handling for rule evaluation:
+
+```typescript
+async function safeEvaluateRule(rule, payload) {
+  try {
+    return await evaluateRule(rule, payload);
+  } catch (error) {
+    console.error(`Error evaluating rule ${rule.id}:`, error);
+    
+    // Record the error
+    await recordRuleError({
+      ruleId: rule.id,
+      event: rule.event,
+      error: error.message,
+      payload: JSON.stringify(payload),
+      timestamp: new Date()
+    });
+    
+    return { matched: false, error };
+  }
+}
+```
+
+## Internationalization
+
+### Translating Rule Content
+
+Support multiple languages in rule descriptions and messages:
+
+```json
+{
+  "id": "welcome-email",
+  "name": {
+    "en": "Welcome Email",
+    "es": "Correo de Bienvenida",
+    "fr": "Email de Bienvenue"
+  },
+  "description": {
+    "en": "Sends a welcome email to new users",
+    "es": "Envía un correo de bienvenida a nuevos usuarios",
+    "fr": "Envoie un email de bienvenue aux nouveaux utilisateurs"
+  },
+  "actions": [
+    {
+      "type": "email",
+      "template": "welcome",
+      "subject": {
+        "en": "Welcome to our platform!",
+        "es": "¡Bienvenido a nuestra plataforma!",
+        "fr": "Bienvenue sur notre plateforme !"
+      }
+    }
+  ]
+}
+```
+
+## Best Practices
+
+1. **Use descriptive IDs and names** - Make it easy to understand what each rule does
+2. **Organize rules by domain** - Group related rules together
+3. **Version control your rules** - Track changes to rules over time
+4. **Test rules thoroughly** - Create unit tests for your rules
+5. **Monitor rule performance** - Track execution metrics and errors
+6. **Document your rules** - Add descriptions to explain the purpose of each rule
+7. **Use tags for categorization** - Tags make it easier to filter and manage rules
+8. **Implement rule validation** - Ensure rules are well-formed before using them
+9. **Create an administration interface** - Make it easy to manage rules
+10. **Optimize rule evaluation** - Index and cache rules for better performance
+
+## Next Steps
+
+- Learn about [Testing Rules](/packages/trigger-rules/testing) effectively
+- Explore integration with [Trigger.dev](/packages/trigger)
+- See how to use [Internationalization](/internationalization/introduction) with trigger rules

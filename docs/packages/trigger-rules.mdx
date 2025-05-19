@@ -1,0 +1,137 @@
+---
+title: 'Trigger Rules'
+description: 'Rule-based event processing for Trigger.dev workflows'
+icon: 'filter'
+---
+
+# Trigger Rules
+
+The `@repo/trigger-rules` package provides a powerful rule engine for processing events in your Trigger.dev workflows. It allows you to define JSON-based rules that can be evaluated against event payloads to determine actions and routing.
+
+## Features
+
+- JSON-based rule definitions for easy configuration
+- Condition evaluation with support for complex expressions
+- Integration with Trigger.dev jobs and events
+- Dynamic rule loading and evaluation
+- Support for internationalization
+
+## Installation
+
+This package is part of the Zopio monorepo and is available to all applications in the workspace.
+
+```bash
+# If you're adding it to a new package in the monorepo
+pnpm add @repo/trigger-rules
+```
+
+## Basic Usage
+
+### Importing the Rule Engine
+
+```typescript
+import { evaluateRule, type JSONRule } from "@repo/trigger-rules";
+```
+
+### Defining Rules
+
+Rules are defined in JSON format, either inline or loaded from a file:
+
+```typescript
+// Define a rule inline
+const rule: JSONRule = {
+  id: "new-user-notification",
+  name: "New User Notification",
+  description: "Send notification when a new user signs up",
+  event: "user.created",
+  condition: {
+    operator: "AND",
+    conditions: [
+      {
+        field: "user.email",
+        operator: "contains",
+        value: "@example.com"
+      }
+    ]
+  },
+  actions: [
+    {
+      type: "notification",
+      target: "admin",
+      template: "new-user"
+    }
+  ]
+};
+
+// Or load rules from a JSON file
+import rules from "./rules.json";
+const typedRules = rules as JSONRule[];
+```
+
+### Evaluating Rules
+
+```typescript
+// Evaluate a single rule
+const result = await evaluateRule(rule, { 
+  user: { 
+    email: "user@example.com",
+    name: "John Doe" 
+  } 
+});
+
+// Evaluate multiple rules
+const matchingRules = typedRules.filter(rule => rule.event === "user.created");
+for (const rule of matchingRules) {
+  await evaluateRule(rule, { user: payload });
+}
+```
+
+## Integration with Trigger.dev
+
+The trigger rules package integrates seamlessly with Trigger.dev jobs:
+
+```typescript
+import { client } from "@repo/trigger";
+import { eventTrigger, type IO } from "@trigger.dev/sdk";
+import { evaluateRule, type JSONRule } from "@repo/trigger-rules";
+import rules from "../rules.json";
+
+const typedRules = rules as JSONRule[];
+
+export const userCreatedJob = client.defineJob({
+  id: "process-user-created",
+  name: "Process User Created",
+  version: "1.0.0",
+  trigger: eventTrigger({
+    name: "user.created",
+  }),
+  run: async (payload, io) => {
+    // Log the event
+    await io.logger.info(`New user created: ${payload.email}`);
+    
+    // Find and evaluate matching rules
+    const matchingRules = typedRules.filter(rule => rule.event === "user.created");
+    
+    for (const rule of matchingRules) {
+      await evaluateRule(rule, { user: payload });
+    }
+    
+    return { success: true };
+  },
+});
+```
+
+## Advanced Usage
+
+For more detailed information on using trigger rules, see the following pages:
+
+- [Rule Structure](/packages/trigger-rules/structure) - Learn about the structure of rules
+- [Conditions](/packages/trigger-rules/conditions) - Available condition types and operators
+- [Actions](/packages/trigger-rules/actions) - Available action types and configuration
+- [Rule Management](/packages/trigger-rules/management) - How to manage and organize rules
+- [Testing Rules](/packages/trigger-rules/testing) - How to test and validate rules
+
+## Learn More
+
+- [Trigger.dev Documentation](https://trigger.dev/docs)
+- [JSON Schema](https://json-schema.org/)

@@ -1,0 +1,693 @@
+---
+title: 'Testing Rules'
+description: 'Strategies for testing and validating trigger rules'
+icon: 'vial'
+---
+
+# Testing Rules
+
+Proper testing of trigger rules is essential to ensure they behave as expected in your application. This guide covers strategies and best practices for testing and validating rules.
+
+## Testing Strategies
+
+### Unit Testing Rules
+
+Test individual rules with sample data:
+
+```typescript
+import { evaluateRule } from "@repo/trigger-rules";
+
+describe("Premium User Rules", () => {
+  const premiumWelcomeRule = {
+    id: "premium-welcome",
+    event: "user.created",
+    condition: {
+      field: "user.plan",
+      operator: "equals",
+      value: "premium"
+    },
+    actions: [
+      {
+        type: "email",
+        template: "premium-welcome"
+      }
+    ]
+  };
+
+  test("should match premium users", async () => {
+    const result = await evaluateRule(premiumWelcomeRule, {
+      user: {
+        id: "123",
+        email: "user@example.com",
+        plan: "premium"
+      }
+    });
+    
+    expect(result.matched).toBe(true);
+  });
+
+  test("should not match free users", async () => {
+    const result = await evaluateRule(premiumWelcomeRule, {
+      user: {
+        id: "456",
+        email: "free@example.com",
+        plan: "free"
+      }
+    });
+    
+    expect(result.matched).toBe(false);
+  });
+});
+```
+
+### Testing Conditions
+
+Test complex conditions separately:
+
+```typescript
+import { evaluateCondition } from "@repo/trigger-rules";
+
+describe("Complex Conditions", () => {
+  const condition = {
+    operator: "AND",
+    conditions: [
+      {
+        field: "user.plan",
+        operator: "equals",
+        value: "premium"
+      },
+      {
+        operator: "OR",
+        conditions: [
+          {
+            field: "user.country",
+            operator: "equals",
+            value: "US"
+          },
+          {
+            field: "user.country",
+            operator: "equals",
+            value: "CA"
+          }
+        ]
+      }
+    ]
+  };
+
+  test("should match premium US users", async () => {
+    const result = await evaluateCondition(condition, {
+      user: {
+        plan: "premium",
+        country: "US"
+      }
+    });
+    
+    expect(result).toBe(true);
+  });
+
+  test("should match premium CA users", async () => {
+    const result = await evaluateCondition(condition, {
+      user: {
+        plan: "premium",
+        country: "CA"
+      }
+    });
+    
+    expect(result).toBe(true);
+  });
+
+  test("should not match premium UK users", async () => {
+    const result = await evaluateCondition(condition, {
+      user: {
+        plan: "premium",
+        country: "UK"
+      }
+    });
+    
+    expect(result).toBe(false);
+  });
+
+  test("should not match free US users", async () => {
+    const result = await evaluateCondition(condition, {
+      user: {
+        plan: "free",
+        country: "US"
+      }
+    });
+    
+    expect(result).toBe(false);
+  });
+});
+```
+
+### Testing Actions
+
+Mock action handlers for testing:
+
+```typescript
+import { evaluateRule, registerActionType } from "@repo/trigger-rules";
+
+describe("Email Actions", () => {
+  // Mock email service
+  const mockSendEmail = jest.fn();
+  
+  // Register mock action handler
+  beforeAll(() => {
+    registerActionType("email", async (action, context) => {
+      const { template, recipient } = action;
+      mockSendEmail(template, recipient, context);
+      return { success: true };
+    });
+  });
+  
+  // Reset mock before each test
+  beforeEach(() => {
+    mockSendEmail.mockReset();
+  });
+  
+  test("should send welcome email with correct data", async () => {
+    const rule = {
+      id: "welcome-email",
+      event: "user.created",
+      condition: {
+        field: "user.email",
+        operator: "exists"
+      },
+      actions: [
+        {
+          type: "email",
+          template: "welcome",
+          recipient: "{{user.email}}"
+        }
+      ]
+    };
+    
+    const context = {
+      user: {
+        id: "123",
+        email: "test@example.com",
+        name: "Test User"
+      }
+    };
+    
+    await evaluateRule(rule, context);
+    
+    expect(mockSendEmail).toHaveBeenCalledTimes(1);
+    expect(mockSendEmail).toHaveBeenCalledWith(
+      "welcome",
+      "test@example.com",
+      expect.objectContaining(context)
+    );
+  });
+});
+```
+
+## Test Fixtures
+
+Create reusable test fixtures for common scenarios:
+
+```typescript
+// fixtures/users.js
+export const users = {
+  premium: {
+    id: "123",
+    email: "premium@example.com",
+    name: "Premium User",
+    plan: "premium",
+    country: "US"
+  },
+  free: {
+    id: "456",
+    email: "free@example.com",
+    name: "Free User",
+    plan: "free",
+    country: "UK"
+  },
+  enterprise: {
+    id: "789",
+    email: "enterprise@company.com",
+    name: "Enterprise User",
+    plan: "enterprise",
+    country: "DE"
+  }
+};
+
+// fixtures/events.js
+export const events = {
+  userCreated: (user) => ({
+    user,
+    timestamp: new Date().toISOString()
+  }),
+  userUpdated: (user, changes) => ({
+    user,
+    changes,
+    timestamp: new Date().toISOString()
+  })
+};
+```
+
+Use fixtures in tests:
+
+```typescript
+import { evaluateRule } from "@repo/trigger-rules";
+import { users } from "./fixtures/users";
+import { events } from "./fixtures/events";
+
+describe("User Rules", () => {
+  test("premium welcome rule", async () => {
+    const rule = {
+      id: "premium-welcome",
+      event: "user.created",
+      condition: {
+        field: "user.plan",
+        operator: "equals",
+        value: "premium"
+      },
+      actions: [/* ... */]
+    };
+    
+    const premiumEvent = events.userCreated(users.premium);
+    const freeEvent = events.userCreated(users.free);
+    
+    const result1 = await evaluateRule(rule, premiumEvent);
+    const result2 = await evaluateRule(rule, freeEvent);
+    
+    expect(result1.matched).toBe(true);
+    expect(result2.matched).toBe(false);
+  });
+});
+```
+
+## Rule Validation
+
+### Schema Validation
+
+Validate rules against a JSON schema:
+
+```typescript
+import { validateRule } from "@repo/trigger-rules";
+
+describe("Rule Validation", () => {
+  test("valid rule should pass validation", () => {
+    const validRule = {
+      id: "test-rule",
+      name: "Test Rule",
+      event: "user.created",
+      condition: {
+        field: "user.email",
+        operator: "exists"
+      },
+      actions: [
+        {
+          type: "log",
+          level: "info",
+          message: "User created"
+        }
+      ]
+    };
+    
+    expect(validateRule(validRule)).toBe(true);
+  });
+  
+  test("rule without ID should fail validation", () => {
+    const invalidRule = {
+      name: "Invalid Rule",
+      event: "user.created",
+      condition: {
+        field: "user.email",
+        operator: "exists"
+      },
+      actions: []
+    };
+    
+    expect(validateRule(invalidRule)).toBe(false);
+    expect(validateRule.errors).toContainEqual(
+      expect.objectContaining({
+        keyword: "required",
+        params: expect.objectContaining({
+          missingProperty: "id"
+        })
+      })
+    );
+  });
+  
+  test("rule with invalid condition should fail validation", () => {
+    const invalidRule = {
+      id: "invalid-condition",
+      name: "Invalid Condition",
+      event: "user.created",
+      condition: {
+        field: "user.email",
+        operator: "invalid-operator" // Invalid operator
+      },
+      actions: []
+    };
+    
+    expect(validateRule(invalidRule)).toBe(false);
+  });
+});
+```
+
+### Custom Validators
+
+Create custom validators for specific rule types:
+
+```typescript
+function validateEmailRule(rule) {
+  // Basic validation
+  if (!validateRule(rule)) {
+    return false;
+  }
+  
+  // Check for email actions
+  const emailActions = rule.actions.filter(action => action.type === "email");
+  
+  for (const action of emailActions) {
+    if (!action.template) {
+      validateEmailRule.errors = [{
+        message: "Email action requires a template"
+      }];
+      return false;
+    }
+    
+    if (!action.recipient) {
+      validateEmailRule.errors = [{
+        message: "Email action requires a recipient"
+      }];
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+validateEmailRule.errors = [];
+```
+
+## Integration Testing
+
+Test rules in an integrated environment:
+
+```typescript
+import { client } from "@repo/trigger";
+import { evaluateRulesForEvent } from "@repo/trigger-rules";
+
+describe("Trigger Integration", () => {
+  // Mock the Trigger.dev client
+  jest.mock("@repo/trigger", () => ({
+    client: {
+      sendEvent: jest.fn()
+    }
+  }));
+  
+  beforeEach(() => {
+    client.sendEvent.mockReset();
+  });
+  
+  test("user.created event should trigger welcome email rule", async () => {
+    // Load rules from file or mock
+    const rules = [
+      {
+        id: "welcome-email",
+        event: "user.created",
+        condition: {
+          field: "user.email",
+          operator: "exists"
+        },
+        actions: [
+          {
+            type: "email",
+            template: "welcome",
+            recipient: "{{user.email}}"
+          }
+        ]
+      }
+    ];
+    
+    const event = {
+      name: "user.created",
+      payload: {
+        user: {
+          id: "123",
+          email: "test@example.com"
+        }
+      }
+    };
+    
+    await evaluateRulesForEvent(rules, event.name, event.payload);
+    
+    // Check that the expected actions were performed
+    expect(mockEmailService.send).toHaveBeenCalledWith(
+      "welcome",
+      "test@example.com",
+      expect.any(Object)
+    );
+  });
+});
+```
+
+## Testing Tools
+
+### Rule Debugger
+
+Create a debugging utility for rules:
+
+```typescript
+import { evaluateRule } from "@repo/trigger-rules";
+
+async function debugRule(rule, payload) {
+  console.log("=== RULE DEBUG ===");
+  console.log("Rule:", rule.id, rule.name);
+  console.log("Event:", rule.event);
+  console.log("Payload:", JSON.stringify(payload, null, 2));
+  
+  console.log("\n=== CONDITION EVALUATION ===");
+  const conditionResult = await evaluateCondition(rule.condition, payload);
+  console.log("Condition matched:", conditionResult);
+  
+  if (conditionResult) {
+    console.log("\n=== ACTIONS ===");
+    for (const action of rule.actions) {
+      console.log("Action:", action.type);
+      console.log("Parameters:", JSON.stringify(action, null, 2));
+    }
+  }
+  
+  console.log("\n=== RESULT ===");
+  const result = await evaluateRule(rule, payload);
+  console.log("Rule matched:", result.matched);
+  if (result.actions) {
+    console.log("Actions executed:", result.actions.length);
+    console.log("Action results:", result.actions);
+  }
+  if (result.error) {
+    console.error("Error:", result.error);
+  }
+  
+  return result;
+}
+```
+
+### Rule Visualizer
+
+Create a visual representation of rules for documentation:
+
+```typescript
+function visualizeRule(rule) {
+  let output = `# ${rule.name} (${rule.id})\n\n`;
+  
+  if (rule.description) {
+    output += `${rule.description}\n\n`;
+  }
+  
+  output += `**Event:** ${rule.event}\n\n`;
+  
+  output += "## Condition\n\n";
+  output += visualizeCondition(rule.condition);
+  
+  output += "\n\n## Actions\n\n";
+  for (const action of rule.actions) {
+    output += `- **${action.type}**: ${visualizeAction(action)}\n`;
+  }
+  
+  return output;
+}
+```
+
+## Performance Testing
+
+Test rule evaluation performance:
+
+```typescript
+import { evaluateRule } from "@repo/trigger-rules";
+
+describe("Rule Performance", () => {
+  test("should evaluate rules efficiently", async () => {
+    const rule = {
+      id: "complex-rule",
+      event: "user.action",
+      condition: {
+        // Complex nested condition
+        operator: "AND",
+        conditions: [
+          // ... many conditions
+        ]
+      },
+      actions: [
+        // Multiple actions
+      ]
+    };
+    
+    const payload = {
+      // Large payload
+    };
+    
+    const iterations = 1000;
+    const startTime = performance.now();
+    
+    for (let i = 0; i < iterations; i++) {
+      await evaluateRule(rule, payload);
+    }
+    
+    const endTime = performance.now();
+    const duration = endTime - startTime;
+    const avgTime = duration / iterations;
+    
+    console.log(`Average evaluation time: ${avgTime.toFixed(3)}ms`);
+    
+    // Assert that performance is within acceptable limits
+    expect(avgTime).toBeLessThan(5); // Less than 5ms per evaluation
+  });
+});
+```
+
+## Best Practices
+
+1. **Write comprehensive tests** - Test both positive and negative cases
+2. **Use test fixtures** - Create reusable test data
+3. **Mock external dependencies** - Isolate rule testing from external services
+4. **Validate rule structure** - Ensure rules are well-formed
+5. **Test complex conditions separately** - Break down testing of complex rules
+6. **Test rule performance** - Ensure rules evaluate efficiently
+7. **Use integration tests** - Test rules in a realistic environment
+8. **Document test cases** - Make it clear what each test is verifying
+9. **Automate testing** - Include rule tests in your CI/CD pipeline
+10. **Create debugging tools** - Make it easier to troubleshoot rule issues
+
+## Example Test Suite
+
+Here's a complete example of a rule test suite:
+
+```typescript
+import { evaluateRule, evaluateCondition } from "@repo/trigger-rules";
+
+// Test fixtures
+const users = {
+  premium: {
+    id: "123",
+    email: "premium@example.com",
+    plan: "premium"
+  },
+  free: {
+    id: "456",
+    email: "free@example.com",
+    plan: "free"
+  }
+};
+
+// Mock services
+const mockEmailService = {
+  send: jest.fn()
+};
+
+// Register mock action handlers
+registerActionType("email", async (action, context) => {
+  const { template, recipient } = action;
+  await mockEmailService.send(template, recipient, context);
+  return { success: true };
+});
+
+describe("User Onboarding Rules", () => {
+  beforeEach(() => {
+    mockEmailService.send.mockReset();
+  });
+  
+  describe("Welcome Email Rule", () => {
+    const welcomeRule = {
+      id: "welcome-email",
+      name: "Welcome Email",
+      event: "user.created",
+      condition: {
+        field: "user.email",
+        operator: "exists"
+      },
+      actions: [
+        {
+          type: "email",
+          template: "welcome",
+          recipient: "{{user.email}}"
+        }
+      ]
+    };
+    
+    test("should match users with email", async () => {
+      const result = await evaluateRule(welcomeRule, { user: users.premium });
+      expect(result.matched).toBe(true);
+    });
+    
+    test("should send welcome email", async () => {
+      await evaluateRule(welcomeRule, { user: users.premium });
+      expect(mockEmailService.send).toHaveBeenCalledWith(
+        "welcome",
+        users.premium.email,
+        expect.any(Object)
+      );
+    });
+  });
+  
+  describe("Premium Onboarding Rule", () => {
+    const premiumRule = {
+      id: "premium-onboarding",
+      name: "Premium Onboarding",
+      event: "user.created",
+      condition: {
+        field: "user.plan",
+        operator: "equals",
+        value: "premium"
+      },
+      actions: [
+        {
+          type: "email",
+          template: "premium-welcome",
+          recipient: "{{user.email}}"
+        }
+      ]
+    };
+    
+    test("should match premium users", async () => {
+      const result = await evaluateRule(premiumRule, { user: users.premium });
+      expect(result.matched).toBe(true);
+    });
+    
+    test("should not match free users", async () => {
+      const result = await evaluateRule(premiumRule, { user: users.free });
+      expect(result.matched).toBe(false);
+    });
+    
+    test("should send premium welcome email", async () => {
+      await evaluateRule(premiumRule, { user: users.premium });
+      expect(mockEmailService.send).toHaveBeenCalledWith(
+        "premium-welcome",
+        users.premium.email,
+        expect.any(Object)
+      );
+    });
+  });
+});
+```
+
+## Next Steps
+
+- Explore [Rule Management](/packages/trigger-rules/management) techniques
+- Learn about [Internationalization](/internationalization/introduction) with trigger rules
+- See how to integrate with [Trigger.dev](/packages/trigger)

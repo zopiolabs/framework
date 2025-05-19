@@ -1,0 +1,265 @@
+---
+title: 'Conditions'
+description: 'Defining and using conditions in trigger rules'
+icon: 'code-branch'
+---
+
+# Conditions
+
+Conditions determine when a trigger rule should be applied. They allow you to create complex logic for evaluating event data and determining whether actions should be executed.
+
+## Condition Structure
+
+A condition can be either a simple field comparison or a logical group of other conditions:
+
+```typescript
+type Condition = SimpleCondition | GroupCondition;
+
+interface SimpleCondition {
+  field: string;        // The field to evaluate (dot notation supported)
+  operator: string;     // The comparison operator
+  value?: any;          // The value to compare against (optional for some operators)
+}
+
+interface GroupCondition {
+  operator: 'AND' | 'OR'; // Logical operator
+  conditions: Condition[]; // List of conditions to combine
+}
+```
+
+## Simple Conditions
+
+Simple conditions compare a field in the event data to a value using an operator:
+
+```json
+{
+  "field": "user.email",
+  "operator": "contains",
+  "value": "@example.com"
+}
+```
+
+### Field Path Notation
+
+Fields are specified using dot notation to access nested properties:
+
+```
+user.address.country
+payment.amount
+document.metadata.tags[0]
+```
+
+### Available Operators
+
+The following operators are available for simple conditions:
+
+| Operator | Description | Example |
+| --- | --- | --- |
+| `equals` | Exact equality | `{"field": "user.role", "operator": "equals", "value": "admin"}` |
+| `notEquals` | Inequality | `{"field": "user.status", "operator": "notEquals", "value": "inactive"}` |
+| `contains` | String contains | `{"field": "user.email", "operator": "contains", "value": "@gmail.com"}` |
+| `notContains` | String does not contain | `{"field": "user.email", "operator": "notContains", "value": "test"}` |
+| `startsWith` | String starts with | `{"field": "document.title", "operator": "startsWith", "value": "Draft:"}` |
+| `endsWith` | String ends with | `{"field": "file.name", "operator": "endsWith", "value": ".pdf"}` |
+| `greaterThan` | Numeric greater than | `{"field": "payment.amount", "operator": "greaterThan", "value": 100}` |
+| `lessThan` | Numeric less than | `{"field": "payment.amount", "operator": "lessThan", "value": 50}` |
+| `greaterThanOrEqual` | Numeric greater than or equal | `{"field": "user.age", "operator": "greaterThanOrEqual", "value": 18}` |
+| `lessThanOrEqual` | Numeric less than or equal | `{"field": "product.stock", "operator": "lessThanOrEqual", "value": 5}` |
+| `in` | Value in array | `{"field": "user.role", "operator": "in", "value": ["admin", "editor"]}` |
+| `notIn` | Value not in array | `{"field": "user.country", "operator": "notIn", "value": ["US", "CA"]}` |
+| `exists` | Field exists | `{"field": "user.phoneNumber", "operator": "exists"}` |
+| `notExists` | Field does not exist | `{"field": "user.deletedAt", "operator": "notExists"}` |
+| `isTrue` | Boolean is true | `{"field": "user.emailVerified", "operator": "isTrue"}` |
+| `isFalse` | Boolean is false | `{"field": "user.suspended", "operator": "isFalse"}` |
+| `matches` | Regex match | `{"field": "user.email", "operator": "matches", "value": "^[a-z0-9]+@[a-z]+\\.[a-z]{2,3}$"}` |
+
+## Group Conditions
+
+Group conditions combine multiple conditions using logical operators:
+
+```json
+{
+  "operator": "AND",
+  "conditions": [
+    {
+      "field": "user.plan",
+      "operator": "equals",
+      "value": "premium"
+    },
+    {
+      "field": "user.trialEnded",
+      "operator": "isTrue"
+    }
+  ]
+}
+```
+
+### Logical Operators
+
+Two logical operators are available:
+
+- `AND`: All conditions must be true
+- `OR`: At least one condition must be true
+
+### Nesting Conditions
+
+Conditions can be nested to create complex logic:
+
+```json
+{
+  "operator": "OR",
+  "conditions": [
+    {
+      "operator": "AND",
+      "conditions": [
+        {
+          "field": "user.plan",
+          "operator": "equals",
+          "value": "premium"
+        },
+        {
+          "field": "user.country",
+          "operator": "equals",
+          "value": "US"
+        }
+      ]
+    },
+    {
+      "operator": "AND",
+      "conditions": [
+        {
+          "field": "user.plan",
+          "operator": "equals",
+          "value": "enterprise"
+        },
+        {
+          "field": "user.employeeCount",
+          "operator": "greaterThan",
+          "value": 100
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Dynamic Values
+
+You can use template strings in condition values to reference other fields in the event data:
+
+```json
+{
+  "field": "user.email",
+  "operator": "equals",
+  "value": "{{user.username}}@example.com"
+}
+```
+
+## Custom Operators
+
+You can extend the rule engine with custom operators by registering them with the rule evaluator:
+
+```typescript
+import { registerOperator } from "@repo/trigger-rules";
+
+// Register a custom operator
+registerOperator("containsAny", (fieldValue, conditionValue) => {
+  if (!Array.isArray(conditionValue)) {
+    return false;
+  }
+  
+  return conditionValue.some(value => 
+    String(fieldValue).includes(String(value))
+  );
+});
+
+// Now you can use it in your rules
+const rule = {
+  // ...
+  "condition": {
+    "field": "user.email",
+    "operator": "containsAny",
+    "value": ["@gmail.com", "@hotmail.com", "@yahoo.com"]
+  }
+  // ...
+};
+```
+
+## Best Practices
+
+1. **Start simple** - Begin with simple conditions and add complexity as needed
+2. **Use meaningful field paths** - Choose clear, descriptive paths for your fields
+3. **Avoid deep nesting** - Too many nested conditions can be hard to understand
+4. **Consider performance** - Complex conditions may impact evaluation performance
+5. **Test thoroughly** - Validate your conditions with different inputs
+
+## Examples
+
+### User in Specific Region with Premium Plan
+
+```json
+{
+  "operator": "AND",
+  "conditions": [
+    {
+      "field": "user.region",
+      "operator": "in",
+      "value": ["NA", "EU"]
+    },
+    {
+      "field": "user.plan",
+      "operator": "equals",
+      "value": "premium"
+    }
+  ]
+}
+```
+
+### High-Value Transaction or VIP Customer
+
+```json
+{
+  "operator": "OR",
+  "conditions": [
+    {
+      "field": "transaction.amount",
+      "operator": "greaterThan",
+      "value": 1000
+    },
+    {
+      "field": "user.isVIP",
+      "operator": "isTrue"
+    }
+  ]
+}
+```
+
+### Email from Company Domain with Specific Subject
+
+```json
+{
+  "operator": "AND",
+  "conditions": [
+    {
+      "field": "email.from",
+      "operator": "endsWith",
+      "value": "@ourcompany.com"
+    },
+    {
+      "field": "email.subject",
+      "operator": "contains",
+      "value": "urgent"
+    },
+    {
+      "field": "email.read",
+      "operator": "isFalse"
+    }
+  ]
+}
+```
+
+## Next Steps
+
+- Learn about [Actions](/packages/trigger-rules/actions) to perform when conditions are met
+- Explore [Rule Management](/packages/trigger-rules/management) techniques
+- See how to [Test Rules](/packages/trigger-rules/testing) effectively

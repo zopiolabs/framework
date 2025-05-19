@@ -1,0 +1,238 @@
+---
+title: 'Rule Structure'
+description: 'Understanding the structure of trigger rules'
+icon: 'sitemap'
+---
+
+# Rule Structure
+
+Trigger rules follow a specific JSON structure that defines when and how they should be applied. This page explains the structure of rules and how to create them.
+
+## Basic Rule Structure
+
+A rule consists of the following components:
+
+```typescript
+interface JSONRule {
+  id: string;              // Unique identifier for the rule
+  name: string;            // Human-readable name
+  description?: string;    // Optional description
+  event: string;           // Event type this rule applies to (e.g., "user.created")
+  condition: Condition;    // Conditions that must be met for the rule to trigger
+  actions: Action[];       // Actions to perform when the rule is triggered
+  priority?: number;       // Optional priority (higher numbers = higher priority)
+  enabled?: boolean;       // Whether the rule is enabled (defaults to true)
+  tags?: string[];         // Optional tags for categorizing rules
+}
+```
+
+## Example Rule
+
+Here's an example of a complete rule:
+
+```json
+{
+  "id": "premium-user-welcome",
+  "name": "Premium User Welcome",
+  "description": "Send a special welcome email to premium users",
+  "event": "user.created",
+  "condition": {
+    "operator": "AND",
+    "conditions": [
+      {
+        "field": "user.plan",
+        "operator": "equals",
+        "value": "premium"
+      },
+      {
+        "field": "user.email",
+        "operator": "exists"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "type": "email",
+      "template": "premium-welcome",
+      "recipient": "{{user.email}}",
+      "data": {
+        "userName": "{{user.name}}"
+      }
+    },
+    {
+      "type": "notification",
+      "target": "sales",
+      "message": "New premium user: {{user.email}}"
+    }
+  ],
+  "priority": 10,
+  "enabled": true,
+  "tags": ["premium", "onboarding"]
+}
+```
+
+## Rule Components
+
+### ID and Name
+
+Each rule must have a unique `id` and a human-readable `name`:
+
+```json
+{
+  "id": "new-user-notification",
+  "name": "New User Notification"
+}
+```
+
+### Event Type
+
+The `event` field specifies which event type this rule applies to:
+
+```json
+{
+  "event": "user.created"
+}
+```
+
+Common event types include:
+- `user.created`
+- `user.updated`
+- `user.deleted`
+- `payment.succeeded`
+- `document.shared`
+
+### Conditions
+
+The `condition` field defines when the rule should be triggered. It can be a simple condition or a complex nested structure:
+
+```json
+{
+  "condition": {
+    "operator": "AND",
+    "conditions": [
+      {
+        "field": "user.email",
+        "operator": "contains",
+        "value": "@example.com"
+      },
+      {
+        "field": "user.role",
+        "operator": "equals",
+        "value": "admin"
+      }
+    ]
+  }
+}
+```
+
+See the [Conditions](/packages/trigger-rules/conditions) page for more details on available operators and condition types.
+
+### Actions
+
+The `actions` field is an array of actions to perform when the rule is triggered:
+
+```json
+{
+  "actions": [
+    {
+      "type": "email",
+      "template": "welcome-email",
+      "recipient": "{{user.email}}"
+    },
+    {
+      "type": "webhook",
+      "url": "https://example.com/webhook",
+      "method": "POST",
+      "payload": {
+        "userId": "{{user.id}}",
+        "event": "user_created"
+      }
+    }
+  ]
+}
+```
+
+See the [Actions](/packages/trigger-rules/actions) page for more details on available action types.
+
+### Priority
+
+The optional `priority` field determines the order in which rules are evaluated when multiple rules match the same event:
+
+```json
+{
+  "priority": 10  // Higher numbers = higher priority
+}
+```
+
+### Enabled Flag
+
+The optional `enabled` field determines whether the rule is active:
+
+```json
+{
+  "enabled": true  // Defaults to true if not specified
+}
+```
+
+### Tags
+
+The optional `tags` field allows you to categorize rules:
+
+```json
+{
+  "tags": ["onboarding", "email", "premium"]
+}
+```
+
+## Rule Organization
+
+Rules can be organized in different ways:
+
+### Single JSON File
+
+Store all rules in a single JSON file:
+
+```json
+// rules.json
+[
+  {
+    "id": "rule1",
+    "name": "Rule 1",
+    // ...
+  },
+  {
+    "id": "rule2",
+    "name": "Rule 2",
+    // ...
+  }
+]
+```
+
+### Multiple Files by Category
+
+Organize rules into separate files by category:
+
+```
+rules/
+  user-rules.json
+  payment-rules.json
+  notification-rules.json
+```
+
+### Database Storage
+
+For more dynamic applications, rules can be stored in a database and loaded at runtime.
+
+## Best Practices
+
+1. **Use descriptive IDs and names** - Make it easy to understand what each rule does
+2. **Keep conditions focused** - Don't create overly complex conditions
+3. **Use tags for organization** - Tags make it easier to filter and manage rules
+4. **Set appropriate priorities** - Use priorities to ensure rules are evaluated in the correct order
+5. **Document your rules** - Add descriptions to explain the purpose of each rule
+
+## Next Steps
+
+- Learn about [Conditions](/packages/trigger-rules/conditions) in trigger rules
+- Explore available [Actions](/packages/trigger-rules/actions) for trigger rules
+- Understand how to [Manage Rules](/packages/trigger-rules/management) effectively
