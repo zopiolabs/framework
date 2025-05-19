@@ -1,5 +1,11 @@
 import { client } from "@repo/trigger";
 import { eventTrigger, type IO } from "@trigger.dev/sdk";
+import { evaluateRule, type JSONRule } from "@repo/trigger-rules";
+// Import rules and ensure they match the JSONRule type
+import rules from "../rules.json";
+
+// Type assertion to ensure rules match JSONRule type
+const typedRules = rules as JSONRule[];
 
 // Define types for our job payloads
 interface UserCreatedPayload {
@@ -15,7 +21,6 @@ interface UserDeletedPayload {
 
 /**
  * Job to send a welcome email when a user is created
- * This job is triggered by the "user.created" event
  */
 export const sendWelcomeEmailJob = client.defineJob({
   id: "send-welcome-email",
@@ -26,16 +31,12 @@ export const sendWelcomeEmailJob = client.defineJob({
   }),
   run: async (payload: UserCreatedPayload, io: IO) => {
     await io.logger.info(`Sending welcome email to ${payload.email}`);
-    // Here you would typically integrate with an email service
-    // Example: await emailService.sendWelcomeEmail(payload.email);
-    
     return { success: true, email: payload.email };
   },
 });
 
 /**
- * Job to notify admins when a new user signs up
- * This job is triggered by the "user.created" event
+ * Job to notify admins when a new user signs up + evaluate matching rules
  */
 export const notifyAdminsJob = client.defineJob({
   id: "notify-admins-new-user",
@@ -46,16 +47,20 @@ export const notifyAdminsJob = client.defineJob({
   }),
   run: async (payload: UserCreatedPayload, io: IO) => {
     await io.logger.info(`New user signed up: ${payload.email}`);
-    // Here you would typically send notifications to admins
-    // Example: await notificationService.notifyAdmins("New user", `${payload.email} just signed up`);
-    
+
+    // Evaluate rules for "user.created"
+    const matchingRules = typedRules.filter(rule => rule.event === "user.created");
+
+    for (const rule of matchingRules) {
+      await evaluateRule(rule, { user: payload });
+    }
+
     return { success: true };
   },
 });
 
 /**
- * Job to process user deletion
- * This job is triggered by the "user.deleted" event
+ * Job to process user deletion + evaluate matching rules
  */
 export const processUserDeletionJob = client.defineJob({
   id: "process-user-deletion",
@@ -65,10 +70,15 @@ export const processUserDeletionJob = client.defineJob({
     name: "user.deleted",
   }),
   run: async (payload: UserDeletedPayload, io: IO) => {
-    await io.logger.info(`Processing deletion for user: ${payload.userId}`);
-    // Here you would typically clean up user data
-    // Example: await dataCleanupService.removeUserData(payload.userId);
+    await io.logger.info(`User deleted: ${payload.userId}, reason: ${payload.reason || 'Not specified'}`);
+    
+    // Evaluate rules for "user.deleted"
+    const matchingRules = typedRules.filter(rule => rule.event === "user.deleted");
+    
+    for (const rule of matchingRules) {
+      await evaluateRule(rule, { user: payload });
+    }
     
     return { success: true };
-  },
+  }
 });
