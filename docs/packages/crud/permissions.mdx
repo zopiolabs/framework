@@ -1,0 +1,690 @@
+---
+title: 'Permissions System'
+description: 'Access control for CRUD operations'
+icon: 'lock'
+---
+
+# Permissions System
+
+The permissions package in `@repo/crud` provides a comprehensive access control system for CRUD operations. It allows you to define who can perform which operations on which resources.
+
+## Features
+
+- **Fine-Grained Control**: Define permissions at the resource and operation level
+- **Dynamic Permissions**: Permissions can be based on the user, resource, and data
+- **Role-Based Access Control**: Support for role-based permissions
+- **Attribute-Based Access Control**: Support for attribute-based permissions
+- **Flexible API**: Easy to integrate with your authentication system
+- **Caching**: Efficient permission checking with caching
+- **TypeScript Support**: Full TypeScript support with generics
+
+## Basic Usage
+
+### Setting Up Permissions
+
+```typescript
+import { permissions } from '@repo/crud';
+import { engine } from '@repo/crud';
+import { providers } from '@repo/data';
+
+// Define permissions
+const userPermissions = permissions.definePermissions({
+  users: {
+    read: true, // Everyone can read users
+    create: (user) => user.role === 'admin', // Only admins can create users
+    update: (user, resource) => user.id === resource.id || user.role === 'admin', // Users can update themselves, admins can update anyone
+    delete: (user) => user.role === 'admin' // Only admins can delete users
+  },
+  posts: {
+    read: true, // Everyone can read posts
+    create: (user) => !!user, // Any authenticated user can create posts
+    update: (user, resource) => user.id === resource.userId || user.role === 'admin', // Users can update their own posts, admins can update any
+    delete: (user, resource) => user.id === resource.userId || user.role === 'admin' // Users can delete their own posts, admins can delete any
+  }
+});
+
+// Create a permissions provider
+const permissionsProvider = permissions.createPermissionsProvider({
+  getPermissions: async (user) => {
+    return userPermissions;
+  }
+});
+
+// Create a data provider
+const dataProvider = providers.supabase.createProvider({
+  url: process.env.SUPABASE_URL,
+  key: process.env.SUPABASE_KEY
+});
+
+// Create a CRUD engine with permissions
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  enablePermissions: true,
+  permissionsProvider
+});
+```
+
+### Setting the Current User
+
+Before performing CRUD operations, you need to set the current user:
+
+```typescript
+import { permissions } from '@repo/crud';
+
+// Set the current user
+permissions.setUser({
+  id: '123',
+  role: 'admin',
+  name: 'John Doe'
+});
+
+// Now CRUD operations will be checked against this user
+const result = await crudEngine.getList({
+  resource: 'users',
+  pagination: { page: 1, perPage: 10 }
+});
+```
+
+### Integration with Authentication
+
+You can integrate the permissions system with your authentication system:
+
+```typescript
+import { permissions } from '@repo/crud';
+import { useAuth } from '@repo/auth';
+
+function PermissionsProvider({ children }) {
+  const { user } = useAuth();
+
+  // Set the current user whenever it changes
+  useEffect(() => {
+    if (user) {
+      permissions.setUser(user);
+    } else {
+      permissions.clearUser();
+    }
+  }, [user]);
+
+  return children;
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <PermissionsProvider>
+        <YourApp />
+      </PermissionsProvider>
+    </AuthProvider>
+  );
+}
+```
+
+## Permission Types
+
+### Boolean Permissions
+
+The simplest form of permissions is a boolean value:
+
+```typescript
+const permissions = {
+  users: {
+    read: true, // Everyone can read users
+    create: false, // No one can create users
+    update: false, // No one can update users
+    delete: false // No one can delete users
+  }
+};
+```
+
+### Function Permissions
+
+For more complex permissions, you can use functions:
+
+```typescript
+const permissions = {
+  users: {
+    read: (user) => !!user, // Only authenticated users can read users
+    create: (user) => user.role === 'admin', // Only admins can create users
+    update: (user, resource) => user.id === resource.id || user.role === 'admin', // Users can update themselves, admins can update anyone
+    delete: (user, resource) => user.role === 'admin' // Only admins can delete users
+  }
+};
+```
+
+### Data-Dependent Permissions
+
+You can also define permissions that depend on the data being created or updated:
+
+```typescript
+const permissions = {
+  posts: {
+    create: (user, data) => {
+      // Users can only create posts with their own userId
+      return data.userId === user.id;
+    },
+    update: (user, resource, data) => {
+      // Users can update their own posts, but can't change the userId
+      if (user.id === resource.userId) {
+        return data.userId === user.id;
+      }
+      // Admins can update any post
+      return user.role === 'admin';
+    }
+  }
+};
+```
+
+## Permission Providers
+
+### Creating a Permissions Provider
+
+You can create a permissions provider to fetch permissions dynamically:
+
+```typescript
+import { permissions } from '@repo/crud';
+
+// Create a permissions provider
+const permissionsProvider = permissions.createPermissionsProvider({
+  getPermissions: async (user) => {
+    // Fetch permissions from an API or database
+    const response = await fetch(`/api/permissions?userId=${user.id}`);
+    const data = await response.json();
+    
+    // Transform the data into the permissions format
+    return {
+      users: {
+        read: data.canReadUsers,
+        create: data.canCreateUsers,
+        update: data.canUpdateUsers,
+        delete: data.canDeleteUsers
+      },
+      posts: {
+        read: data.canReadPosts,
+        create: data.canCreatePosts,
+        update: data.canUpdatePosts,
+        delete: data.canDeletePosts
+      }
+    };
+  }
+});
+```
+
+### Caching Permissions
+
+The permissions provider supports caching to improve performance:
+
+```typescript
+import { permissions } from '@repo/crud';
+
+// Create a permissions provider with caching
+const permissionsProvider = permissions.createPermissionsProvider({
+  getPermissions: async (user) => {
+    // Fetch permissions from an API or database
+    const response = await fetch(`/api/permissions?userId=${user.id}`);
+    const data = await response.json();
+    
+    // Transform the data into the permissions format
+    return {
+      users: {
+        read: data.canReadUsers,
+        create: data.canCreateUsers,
+        update: data.canUpdateUsers,
+        delete: data.canDeleteUsers
+      },
+      posts: {
+        read: data.canReadPosts,
+        create: data.canCreatePosts,
+        update: data.canUpdatePosts,
+        delete: data.canDeletePosts
+      }
+    };
+  },
+  cache: {
+    enabled: true,
+    ttl: 5 * 60 * 1000 // 5 minutes
+  }
+});
+```
+
+## Role-Based Access Control (RBAC)
+
+### Defining Role-Based Permissions
+
+You can define permissions based on roles:
+
+```typescript
+import { permissions } from '@repo/crud';
+
+// Define role-based permissions
+const rolePermissions = {
+  admin: {
+    users: {
+      read: true,
+      create: true,
+      update: true,
+      delete: true
+    },
+    posts: {
+      read: true,
+      create: true,
+      update: true,
+      delete: true
+    }
+  },
+  editor: {
+    users: {
+      read: true,
+      create: false,
+      update: false,
+      delete: false
+    },
+    posts: {
+      read: true,
+      create: true,
+      update: true,
+      delete: true
+    }
+  },
+  user: {
+    users: {
+      read: true,
+      create: false,
+      update: (user, resource) => user.id === resource.id,
+      delete: false
+    },
+    posts: {
+      read: true,
+      create: true,
+      update: (user, resource) => user.id === resource.userId,
+      delete: (user, resource) => user.id === resource.userId
+    }
+  }
+};
+
+// Create a permissions provider
+const permissionsProvider = permissions.createPermissionsProvider({
+  getPermissions: async (user) => {
+    // Get permissions for the user's role
+    return rolePermissions[user.role] || rolePermissions.user;
+  }
+});
+```
+
+### Multiple Roles
+
+You can support users with multiple roles:
+
+```typescript
+import { permissions } from '@repo/crud';
+
+// Define role-based permissions
+const rolePermissions = {
+  admin: {
+    users: {
+      read: true,
+      create: true,
+      update: true,
+      delete: true
+    }
+  },
+  editor: {
+    posts: {
+      read: true,
+      create: true,
+      update: true,
+      delete: true
+    }
+  },
+  user: {
+    users: {
+      read: true,
+      create: false,
+      update: (user, resource) => user.id === resource.id,
+      delete: false
+    },
+    posts: {
+      read: true,
+      create: true,
+      update: (user, resource) => user.id === resource.userId,
+      delete: (user, resource) => user.id === resource.userId
+    }
+  }
+};
+
+// Create a permissions provider
+const permissionsProvider = permissions.createPermissionsProvider({
+  getPermissions: async (user) => {
+    // Merge permissions for all roles
+    const userPermissions = {};
+    
+    // Start with the base user permissions
+    Object.assign(userPermissions, rolePermissions.user);
+    
+    // Add permissions for each role
+    for (const role of user.roles) {
+      if (rolePermissions[role]) {
+        mergePermissions(userPermissions, rolePermissions[role]);
+      }
+    }
+    
+    return userPermissions;
+  }
+});
+
+// Helper function to merge permissions
+function mergePermissions(target, source) {
+  for (const resource in source) {
+    if (!target[resource]) {
+      target[resource] = {};
+    }
+    
+    for (const operation in source[resource]) {
+      // If the source permission is more permissive, use it
+      if (typeof source[resource][operation] === 'boolean') {
+        if (source[resource][operation]) {
+          target[resource][operation] = true;
+        }
+      } else {
+        // For function permissions, we need to combine them
+        const targetPerm = target[resource][operation];
+        const sourcePerm = source[resource][operation];
+        
+        if (typeof targetPerm === 'boolean' && targetPerm) {
+          // If the target is already true, keep it
+        } else if (typeof targetPerm === 'function' && typeof sourcePerm === 'function') {
+          // Combine functions with OR logic
+          target[resource][operation] = (...args) => targetPerm(...args) || sourcePerm(...args);
+        } else {
+          // Use the source permission
+          target[resource][operation] = sourcePerm;
+        }
+      }
+    }
+  }
+}
+```
+
+## Attribute-Based Access Control (ABAC)
+
+### Defining Attribute-Based Permissions
+
+You can define permissions based on attributes of the user, resource, and environment:
+
+```typescript
+import { permissions } from '@repo/crud';
+
+// Define attribute-based permissions
+const attributePermissions = {
+  users: {
+    read: true,
+    create: (user) => user.role === 'admin',
+    update: (user, resource) => {
+      // Users can update themselves
+      if (user.id === resource.id) {
+        return true;
+      }
+      
+      // Managers can update users in their department
+      if (user.role === 'manager' && user.department === resource.department) {
+        return true;
+      }
+      
+      // Admins can update anyone
+      return user.role === 'admin';
+    },
+    delete: (user, resource) => {
+      // Admins can delete anyone
+      if (user.role === 'admin') {
+        return true;
+      }
+      
+      // Managers can delete users in their department, except other managers
+      if (user.role === 'manager' && user.department === resource.department) {
+        return resource.role !== 'manager';
+      }
+      
+      return false;
+    }
+  }
+};
+
+// Create a permissions provider
+const permissionsProvider = permissions.createPermissionsProvider({
+  getPermissions: async (user) => {
+    return attributePermissions;
+  }
+});
+```
+
+### Environment-Based Permissions
+
+You can also include environment factors in your permissions:
+
+```typescript
+import { permissions } from '@repo/crud';
+
+// Define environment-based permissions
+const environmentPermissions = {
+  users: {
+    read: true,
+    create: (user, data, env) => {
+      // Only allow user creation during business hours
+      const hour = env.currentTime.getHours();
+      return hour >= 9 && hour < 17;
+    },
+    update: (user, resource, data, env) => {
+      // Only allow user updates during business hours
+      const hour = env.currentTime.getHours();
+      return hour >= 9 && hour < 17;
+    },
+    delete: (user, resource, env) => {
+      // Only allow user deletion during business hours
+      const hour = env.currentTime.getHours();
+      return hour >= 9 && hour < 17;
+    }
+  }
+};
+
+// Create a permissions provider
+const permissionsProvider = permissions.createPermissionsProvider({
+  getPermissions: async (user) => {
+    return environmentPermissions;
+  },
+  getEnvironment: () => {
+    return {
+      currentTime: new Date()
+    };
+  }
+});
+```
+
+## UI Integration
+
+### Conditional Rendering
+
+You can use the permissions system to conditionally render UI elements:
+
+```tsx
+import { permissions } from '@repo/crud';
+import { ui } from '@repo/crud';
+
+function UserList() {
+  const canCreateUser = permissions.check('users', 'create');
+  
+  return (
+    <ui.ResourceList
+      resource="users"
+      columns={[
+        { field: 'id', headerName: 'ID' },
+        { field: 'name', headerName: 'Name' },
+        { field: 'email', headerName: 'Email' },
+        { field: 'role', headerName: 'Role' }
+      ]}
+      actions={[
+        ...(permissions.check('users', 'update') ? ['edit'] : []),
+        ...(permissions.check('users', 'delete') ? ['delete'] : [])
+      ]}
+      toolbar={
+        canCreateUser && (
+          <button onClick={() => console.log('Create user')}>
+            Create User
+          </button>
+        )
+      }
+    />
+  );
+}
+```
+
+### usePermissions Hook
+
+The permissions package provides a hook for checking permissions in components:
+
+```tsx
+import { permissions } from '@repo/crud';
+
+function UserActions({ user }) {
+  const { check } = permissions.usePermissions();
+  
+  const canUpdateUser = check('users', 'update', user);
+  const canDeleteUser = check('users', 'delete', user);
+  
+  return (
+    <div>
+      {canUpdateUser && (
+        <button onClick={() => console.log('Update user')}>
+          Edit
+        </button>
+      )}
+      {canDeleteUser && (
+        <button onClick={() => console.log('Delete user')}>
+          Delete
+        </button>
+      )}
+    </div>
+  );
+}
+```
+
+## Advanced Usage
+
+### Custom Permission Checks
+
+You can perform custom permission checks:
+
+```typescript
+import { permissions } from '@repo/crud';
+
+// Check if the current user can perform an operation
+const canReadUsers = permissions.check('users', 'read');
+const canCreateUser = permissions.check('users', 'create');
+const canUpdateUser = permissions.check('users', 'update', { id: '123', name: 'John' });
+const canDeleteUser = permissions.check('users', 'delete', { id: '123', name: 'John' });
+
+// Check with custom user
+const canAdminReadUsers = permissions.checkWithUser(
+  { id: 'admin', role: 'admin' },
+  'users',
+  'read'
+);
+
+// Check with custom data
+const canCreateUserWithRole = permissions.check(
+  'users',
+  'create',
+  null,
+  { name: 'John', role: 'admin' }
+);
+```
+
+### Permission Middleware
+
+You can create middleware for your API routes to check permissions:
+
+```typescript
+import { permissions } from '@repo/crud';
+
+// Express middleware
+function checkPermission(resource, operation) {
+  return (req, res, next) => {
+    // Set the current user from the request
+    permissions.setUser(req.user);
+    
+    // Check if the user has permission
+    const hasPermission = permissions.check(
+      resource,
+      operation,
+      req.params.id ? { id: req.params.id } : null,
+      req.body
+    );
+    
+    if (hasPermission) {
+      next();
+    } else {
+      res.status(403).json({ error: 'Permission denied' });
+    }
+  };
+}
+
+// Usage
+app.get('/api/users', checkPermission('users', 'read'), (req, res) => {
+  // Handle request
+});
+
+app.post('/api/users', checkPermission('users', 'create'), (req, res) => {
+  // Handle request
+});
+
+app.put('/api/users/:id', checkPermission('users', 'update'), (req, res) => {
+  // Handle request
+});
+
+app.delete('/api/users/:id', checkPermission('users', 'delete'), (req, res) => {
+  // Handle request
+});
+```
+
+### Permission Inheritance
+
+You can implement permission inheritance for resources:
+
+```typescript
+import { permissions } from '@repo/crud';
+
+// Define permissions with inheritance
+const resourcePermissions = {
+  // Base permissions for all resources
+  '*': {
+    read: (user) => !!user, // Any authenticated user can read
+    create: (user) => user.role === 'admin', // Only admins can create
+    update: (user) => user.role === 'admin', // Only admins can update
+    delete: (user) => user.role === 'admin' // Only admins can delete
+  },
+  // Override permissions for specific resources
+  posts: {
+    create: (user) => !!user, // Any authenticated user can create posts
+    update: (user, resource) => user.id === resource.userId || user.role === 'admin', // Users can update their own posts
+    delete: (user, resource) => user.id === resource.userId || user.role === 'admin' // Users can delete their own posts
+  }
+};
+
+// Create a permissions provider with inheritance
+const permissionsProvider = permissions.createPermissionsProvider({
+  getPermissions: async (user) => {
+    return resourcePermissions;
+  },
+  getInheritedPermissions: (resource, operation) => {
+    // Check if the resource has the operation defined
+    if (resourcePermissions[resource] && resourcePermissions[resource][operation] !== undefined) {
+      return resourcePermissions[resource][operation];
+    }
+    
+    // Fall back to the base permissions
+    return resourcePermissions['*'][operation];
+  }
+});
+```
+
+## API Reference
+
+For a complete API reference, please refer to the TypeScript definitions in the package.

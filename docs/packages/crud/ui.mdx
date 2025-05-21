@@ -1,0 +1,941 @@
+---
+title: 'CRUD UI'
+description: 'UI components for CRUD operations'
+icon: 'window'
+---
+
+# CRUD UI Components
+
+The UI package in `@repo/crud` provides a collection of React components for building CRUD interfaces. These components are built on top of the CRUD Engine and provide a seamless integration with React.
+
+## Features
+
+- **Ready-to-Use Components**: Components for lists, forms, and detail views
+- **Customizable**: Easily customize the appearance and behavior of components
+- **Responsive**: Works well on all screen sizes
+- **Accessible**: Built with accessibility in mind
+- **Internationalization**: Support for multiple languages
+- **Theme Support**: Works with your application's theme
+- **TypeScript Support**: Full TypeScript support with generics
+
+## Installation
+
+This package is part of the Zopio monorepo and is available to all applications in the workspace.
+
+```bash
+# If you're adding it to a new package in the monorepo
+pnpm add @repo/crud
+```
+
+## Basic Usage
+
+### Setting Up the Provider
+
+Before using the UI components, you need to set up the CRUD provider in your application:
+
+```tsx
+import { ui } from '@repo/crud';
+import { engine } from '@repo/crud';
+import { providers } from '@repo/data';
+
+// Create a data provider
+const dataProvider = providers.supabase.createProvider({
+  url: process.env.SUPABASE_URL,
+  key: process.env.SUPABASE_KEY
+});
+
+// Create a CRUD engine
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  enableAudit: true,
+  enablePermissions: true
+});
+
+// Wrap your application with the CRUD provider
+function App() {
+  return (
+    <ui.CrudProvider engine={crudEngine}>
+      <YourApp />
+    </ui.CrudProvider>
+  );
+}
+```
+
+## Core Components
+
+### ResourceList
+
+The `ResourceList` component displays a list of resources with sorting, filtering, and pagination.
+
+```tsx
+import { ui } from '@repo/crud';
+
+function UserList() {
+  return (
+    <ui.ResourceList
+      resource="users"
+      columns={[
+        { field: 'id', headerName: 'ID' },
+        { field: 'name', headerName: 'Name' },
+        { field: 'email', headerName: 'Email' },
+        { field: 'role', headerName: 'Role' },
+        {
+          field: 'actions',
+          headerName: 'Actions',
+          renderCell: (row) => (
+            <div>
+              <button onClick={() => console.log('View', row)}>View</button>
+              <button onClick={() => console.log('Edit', row)}>Edit</button>
+              <button onClick={() => console.log('Delete', row)}>Delete</button>
+            </div>
+          )
+        }
+      ]}
+      pagination={{ page: 1, perPage: 10 }}
+      sort={{ field: 'name', order: 'asc' }}
+      filter={{ role: 'admin' }}
+      onRowClick={(row) => console.log('Clicked row:', row)}
+      actions={['view', 'edit', 'delete']}
+      bulkActions={['delete']}
+      toolbar
+      search
+    />
+  );
+}
+```
+
+#### Props
+
+```typescript
+interface ResourceListProps {
+  resource: string;
+  columns: Column[];
+  pagination?: {
+    page: number;
+    perPage: number;
+  };
+  sort?: {
+    field: string;
+    order: 'asc' | 'desc';
+  };
+  filter?: Record<string, any>;
+  onRowClick?: (row: any) => void;
+  actions?: ('view' | 'edit' | 'delete' | React.ReactNode)[];
+  bulkActions?: ('delete' | React.ReactNode)[];
+  toolbar?: boolean;
+  search?: boolean;
+  title?: string;
+  emptyMessage?: string;
+  loadingMessage?: string;
+  errorMessage?: string;
+  onView?: (id: string | number) => void;
+  onEdit?: (id: string | number) => void;
+  onDelete?: (id: string | number) => void;
+  onBulkDelete?: (ids: (string | number)[]) => void;
+}
+
+interface Column {
+  field: string;
+  headerName: string;
+  width?: number | string;
+  align?: 'left' | 'center' | 'right';
+  sortable?: boolean;
+  filterable?: boolean;
+  renderCell?: (row: any) => React.ReactNode;
+  valueGetter?: (row: any) => any;
+  valueFormatter?: (value: any) => string;
+}
+```
+
+### ResourceDetails
+
+The `ResourceDetails` component displays the details of a resource.
+
+```tsx
+import { ui } from '@repo/crud';
+
+function UserDetails({ id }) {
+  return (
+    <ui.ResourceDetails
+      resource="users"
+      id={id}
+      fields={[
+        { field: 'id', label: 'ID' },
+        { field: 'name', label: 'Name' },
+        { field: 'email', label: 'Email' },
+        { field: 'role', label: 'Role' },
+        {
+          field: 'createdAt',
+          label: 'Created At',
+          render: (value) => new Date(value).toLocaleString()
+        }
+      ]}
+      actions={[
+        {
+          label: 'Edit',
+          onClick: () => console.log('Edit user')
+        },
+        {
+          label: 'Delete',
+          onClick: () => console.log('Delete user'),
+          color: 'error'
+        }
+      ]}
+      title="User Details"
+      goBack={() => console.log('Go back')}
+    />
+  );
+}
+```
+
+#### Props
+
+```typescript
+interface ResourceDetailsProps {
+  resource: string;
+  id: string | number;
+  fields: Field[];
+  actions?: Action[];
+  title?: string;
+  goBack?: () => void;
+  loadingMessage?: string;
+  errorMessage?: string;
+}
+
+interface Field {
+  field: string;
+  label: string;
+  render?: (value: any, record: any) => React.ReactNode;
+}
+
+interface Action {
+  label: string;
+  onClick: () => void;
+  color?: 'primary' | 'secondary' | 'success' | 'error' | 'warning' | 'info';
+  icon?: React.ReactNode;
+  disabled?: boolean;
+}
+```
+
+### ResourceForm
+
+The `ResourceForm` component provides a form for creating or updating a resource.
+
+```tsx
+import { ui } from '@repo/crud';
+
+function UserForm({ id }) {
+  return (
+    <ui.ResourceForm
+      resource="users"
+      id={id} // Omit for create form
+      fields={[
+        { field: 'name', label: 'Name', type: 'text', required: true },
+        { field: 'email', label: 'Email', type: 'email', required: true },
+        {
+          field: 'role',
+          label: 'Role',
+          type: 'select',
+          options: [
+            { value: 'user', label: 'User' },
+            { value: 'admin', label: 'Admin' }
+          ]
+        },
+        {
+          field: 'active',
+          label: 'Active',
+          type: 'checkbox'
+        }
+      ]}
+      onSuccess={(data) => console.log('Form submitted:', data)}
+      onCancel={() => console.log('Form cancelled')}
+      title={id ? 'Edit User' : 'Create User'}
+      submitLabel={id ? 'Update' : 'Create'}
+      cancelLabel="Cancel"
+    />
+  );
+}
+```
+
+#### Props
+
+```typescript
+interface ResourceFormProps {
+  resource: string;
+  id?: string | number;
+  fields: FormField[];
+  onSuccess?: (data: any) => void;
+  onCancel?: () => void;
+  title?: string;
+  submitLabel?: string;
+  cancelLabel?: string;
+  loadingMessage?: string;
+  errorMessage?: string;
+  defaultValues?: Record<string, any>;
+}
+
+interface FormField {
+  field: string;
+  label: string;
+  type: 'text' | 'email' | 'password' | 'number' | 'date' | 'datetime' | 'select' | 'checkbox' | 'radio' | 'textarea';
+  required?: boolean;
+  disabled?: boolean;
+  placeholder?: string;
+  helperText?: string;
+  options?: { value: string | number; label: string }[];
+  min?: number;
+  max?: number;
+  step?: number;
+  rows?: number;
+  validate?: (value: any) => string | undefined;
+  transform?: (value: any) => any;
+}
+```
+
+### ResourceCreate
+
+The `ResourceCreate` component provides a page for creating a new resource.
+
+```tsx
+import { ui } from '@repo/crud';
+
+function CreateUser() {
+  return (
+    <ui.ResourceCreate
+      resource="users"
+      fields={[
+        { field: 'name', label: 'Name', type: 'text', required: true },
+        { field: 'email', label: 'Email', type: 'email', required: true },
+        {
+          field: 'role',
+          label: 'Role',
+          type: 'select',
+          options: [
+            { value: 'user', label: 'User' },
+            { value: 'admin', label: 'Admin' }
+          ]
+        }
+      ]}
+      onSuccess={(data) => console.log('User created:', data)}
+      onCancel={() => console.log('Create cancelled')}
+      title="Create User"
+      goBack={() => console.log('Go back')}
+    />
+  );
+}
+```
+
+#### Props
+
+```typescript
+interface ResourceCreateProps {
+  resource: string;
+  fields: FormField[];
+  onSuccess?: (data: any) => void;
+  onCancel?: () => void;
+  title?: string;
+  goBack?: () => void;
+  submitLabel?: string;
+  cancelLabel?: string;
+  defaultValues?: Record<string, any>;
+}
+```
+
+### ResourceEdit
+
+The `ResourceEdit` component provides a page for editing an existing resource.
+
+```tsx
+import { ui } from '@repo/crud';
+
+function EditUser({ id }) {
+  return (
+    <ui.ResourceEdit
+      resource="users"
+      id={id}
+      fields={[
+        { field: 'name', label: 'Name', type: 'text', required: true },
+        { field: 'email', label: 'Email', type: 'email', required: true },
+        {
+          field: 'role',
+          label: 'Role',
+          type: 'select',
+          options: [
+            { value: 'user', label: 'User' },
+            { value: 'admin', label: 'Admin' }
+          ]
+        }
+      ]}
+      onSuccess={(data) => console.log('User updated:', data)}
+      onCancel={() => console.log('Edit cancelled')}
+      title="Edit User"
+      goBack={() => console.log('Go back')}
+    />
+  );
+}
+```
+
+#### Props
+
+```typescript
+interface ResourceEditProps {
+  resource: string;
+  id: string | number;
+  fields: FormField[];
+  onSuccess?: (data: any) => void;
+  onCancel?: () => void;
+  title?: string;
+  goBack?: () => void;
+  submitLabel?: string;
+  cancelLabel?: string;
+}
+```
+
+## Supporting Components
+
+### Pagination
+
+The `Pagination` component provides pagination controls.
+
+```tsx
+import { ui } from '@repo/crud';
+
+function PaginatedList() {
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const total = 100;
+
+  return (
+    <div>
+      {/* Your list content */}
+      <ui.Pagination
+        page={page}
+        perPage={perPage}
+        total={total}
+        onPageChange={setPage}
+        onPerPageChange={setPerPage}
+        perPageOptions={[5, 10, 25, 50]}
+      />
+    </div>
+  );
+}
+```
+
+#### Props
+
+```typescript
+interface PaginationProps {
+  page: number;
+  perPage: number;
+  total: number;
+  onPageChange: (page: number) => void;
+  onPerPageChange?: (perPage: number) => void;
+  perPageOptions?: number[];
+  showFirstButton?: boolean;
+  showLastButton?: boolean;
+  showPageNumbers?: boolean;
+  maxPageButtons?: number;
+}
+```
+
+### Filter
+
+The `Filter` component provides filtering controls.
+
+```tsx
+import { ui } from '@repo/crud';
+
+function FilterableList() {
+  const [filter, setFilter] = useState({});
+
+  return (
+    <div>
+      <ui.Filter
+        fields={[
+          { field: 'name', label: 'Name', type: 'text' },
+          {
+            field: 'role',
+            label: 'Role',
+            type: 'select',
+            options: [
+              { value: 'user', label: 'User' },
+              { value: 'admin', label: 'Admin' }
+            ]
+          },
+          {
+            field: 'active',
+            label: 'Active',
+            type: 'boolean'
+          },
+          {
+            field: 'createdAt',
+            label: 'Created After',
+            type: 'date'
+          }
+        ]}
+        filter={filter}
+        onChange={setFilter}
+        onReset={() => setFilter({})}
+      />
+      {/* Your list content */}
+    </div>
+  );
+}
+```
+
+#### Props
+
+```typescript
+interface FilterProps {
+  fields: FilterField[];
+  filter: Record<string, any>;
+  onChange: (filter: Record<string, any>) => void;
+  onReset?: () => void;
+}
+
+interface FilterField {
+  field: string;
+  label: string;
+  type: 'text' | 'number' | 'date' | 'select' | 'boolean';
+  options?: { value: string | number; label: string }[];
+}
+```
+
+### Sort
+
+The `Sort` component provides sorting controls.
+
+```tsx
+import { ui } from '@repo/crud';
+
+function SortableList() {
+  const [sort, setSort] = useState({ field: 'name', order: 'asc' });
+
+  return (
+    <div>
+      <ui.Sort
+        fields={[
+          { field: 'name', label: 'Name' },
+          { field: 'email', label: 'Email' },
+          { field: 'createdAt', label: 'Created At' }
+        ]}
+        sort={sort}
+        onChange={setSort}
+      />
+      {/* Your list content */}
+    </div>
+  );
+}
+```
+
+#### Props
+
+```typescript
+interface SortProps {
+  fields: SortField[];
+  sort: { field: string; order: 'asc' | 'desc' };
+  onChange: (sort: { field: string; order: 'asc' | 'desc' }) => void;
+}
+
+interface SortField {
+  field: string;
+  label: string;
+}
+```
+
+### Search
+
+The `Search` component provides search functionality.
+
+```tsx
+import { ui } from '@repo/crud';
+
+function SearchableList() {
+  const [search, setSearch] = useState('');
+
+  return (
+    <div>
+      <ui.Search
+        value={search}
+        onChange={setSearch}
+        placeholder="Search users..."
+        onClear={() => setSearch('')}
+      />
+      {/* Your list content */}
+    </div>
+  );
+}
+```
+
+#### Props
+
+```typescript
+interface SearchProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  onClear?: () => void;
+}
+```
+
+## Layout Components
+
+### CrudLayout
+
+The `CrudLayout` component provides a layout for CRUD pages.
+
+```tsx
+import { ui } from '@repo/crud';
+
+function UserManagement() {
+  return (
+    <ui.CrudLayout
+      title="User Management"
+      actions={[
+        {
+          label: 'Create User',
+          onClick: () => console.log('Create user'),
+          primary: true
+        }
+      ]}
+      breadcrumbs={[
+        { label: 'Dashboard', href: '/' },
+        { label: 'Users' }
+      ]}
+    >
+      {/* Your content */}
+    </ui.CrudLayout>
+  );
+}
+```
+
+#### Props
+
+```typescript
+interface CrudLayoutProps {
+  title: string;
+  actions?: Action[];
+  breadcrumbs?: Breadcrumb[];
+  children: React.ReactNode;
+}
+
+interface Action {
+  label: string;
+  onClick: () => void;
+  primary?: boolean;
+  icon?: React.ReactNode;
+  disabled?: boolean;
+}
+
+interface Breadcrumb {
+  label: string;
+  href?: string;
+}
+```
+
+### Toolbar
+
+The `Toolbar` component provides a toolbar for CRUD pages.
+
+```tsx
+import { ui } from '@repo/crud';
+
+function ListToolbar() {
+  return (
+    <ui.Toolbar
+      title="Users"
+      actions={[
+        {
+          label: 'Create User',
+          onClick: () => console.log('Create user'),
+          primary: true
+        },
+        {
+          label: 'Export',
+          onClick: () => console.log('Export users')
+        }
+      ]}
+      filter={<ui.Search value="" onChange={() => {}} />}
+    />
+  );
+}
+```
+
+#### Props
+
+```typescript
+interface ToolbarProps {
+  title?: string;
+  actions?: Action[];
+  filter?: React.ReactNode;
+}
+```
+
+## Form Components
+
+### Form
+
+The `Form` component provides a base form component.
+
+```tsx
+import { ui } from '@repo/crud';
+
+function UserForm() {
+  const handleSubmit = (data) => {
+    console.log('Form submitted:', data);
+  };
+
+  return (
+    <ui.Form
+      onSubmit={handleSubmit}
+      defaultValues={{ role: 'user' }}
+    >
+      <ui.TextField name="name" label="Name" required />
+      <ui.TextField name="email" label="Email" type="email" required />
+      <ui.SelectField
+        name="role"
+        label="Role"
+        options={[
+          { value: 'user', label: 'User' },
+          { value: 'admin', label: 'Admin' }
+        ]}
+      />
+      <ui.CheckboxField name="active" label="Active" />
+      <ui.FormButtons
+        submitLabel="Save"
+        cancelLabel="Cancel"
+        onCancel={() => console.log('Cancelled')}
+      />
+    </ui.Form>
+  );
+}
+```
+
+#### Props
+
+```typescript
+interface FormProps {
+  onSubmit: (data: any) => void;
+  defaultValues?: Record<string, any>;
+  children: React.ReactNode;
+}
+```
+
+### TextField
+
+The `TextField` component provides a text input field.
+
+```tsx
+import { ui } from '@repo/crud';
+
+function NameField() {
+  return (
+    <ui.TextField
+      name="name"
+      label="Name"
+      required
+      placeholder="Enter your name"
+      helperText="Your full name"
+      validate={(value) => {
+        if (!value) return 'Name is required';
+        if (value.length < 3) return 'Name must be at least 3 characters';
+        return undefined;
+      }}
+    />
+  );
+}
+```
+
+#### Props
+
+```typescript
+interface TextFieldProps {
+  name: string;
+  label: string;
+  type?: 'text' | 'email' | 'password' | 'number' | 'date' | 'datetime';
+  required?: boolean;
+  disabled?: boolean;
+  placeholder?: string;
+  helperText?: string;
+  validate?: (value: any) => string | undefined;
+  min?: number;
+  max?: number;
+  step?: number;
+}
+```
+
+### SelectField
+
+The `SelectField` component provides a select input field.
+
+```tsx
+import { ui } from '@repo/crud';
+
+function RoleField() {
+  return (
+    <ui.SelectField
+      name="role"
+      label="Role"
+      options={[
+        { value: 'user', label: 'User' },
+        { value: 'admin', label: 'Admin' }
+      ]}
+      required
+      helperText="Select a role"
+    />
+  );
+}
+```
+
+#### Props
+
+```typescript
+interface SelectFieldProps {
+  name: string;
+  label: string;
+  options: { value: string | number; label: string }[];
+  required?: boolean;
+  disabled?: boolean;
+  helperText?: string;
+  validate?: (value: any) => string | undefined;
+}
+```
+
+### CheckboxField
+
+The `CheckboxField` component provides a checkbox input field.
+
+```tsx
+import { ui } from '@repo/crud';
+
+function ActiveField() {
+  return (
+    <ui.CheckboxField
+      name="active"
+      label="Active"
+      helperText="Is this user active?"
+    />
+  );
+}
+```
+
+#### Props
+
+```typescript
+interface CheckboxFieldProps {
+  name: string;
+  label: string;
+  disabled?: boolean;
+  helperText?: string;
+  validate?: (value: any) => string | undefined;
+}
+```
+
+### RadioField
+
+The `RadioField` component provides a radio input field.
+
+```tsx
+import { ui } from '@repo/crud';
+
+function GenderField() {
+  return (
+    <ui.RadioField
+      name="gender"
+      label="Gender"
+      options={[
+        { value: 'male', label: 'Male' },
+        { value: 'female', label: 'Female' },
+        { value: 'other', label: 'Other' }
+      ]}
+      required
+      helperText="Select your gender"
+    />
+  );
+}
+```
+
+#### Props
+
+```typescript
+interface RadioFieldProps {
+  name: string;
+  label: string;
+  options: { value: string | number; label: string }[];
+  required?: boolean;
+  disabled?: boolean;
+  helperText?: string;
+  validate?: (value: any) => string | undefined;
+}
+```
+
+### TextAreaField
+
+The `TextAreaField` component provides a textarea input field.
+
+```tsx
+import { ui } from '@repo/crud';
+
+function BioField() {
+  return (
+    <ui.TextAreaField
+      name="bio"
+      label="Bio"
+      rows={4}
+      placeholder="Tell us about yourself"
+      helperText="A short description about yourself"
+    />
+  );
+}
+```
+
+#### Props
+
+```typescript
+interface TextAreaFieldProps {
+  name: string;
+  label: string;
+  rows?: number;
+  required?: boolean;
+  disabled?: boolean;
+  placeholder?: string;
+  helperText?: string;
+  validate?: (value: any) => string | undefined;
+}
+```
+
+### FormButtons
+
+The `FormButtons` component provides submit and cancel buttons for forms.
+
+```tsx
+import { ui } from '@repo/crud';
+
+function FormActions() {
+  return (
+    <ui.FormButtons
+      submitLabel="Save"
+      cancelLabel="Cancel"
+      onCancel={() => console.log('Cancelled')}
+      submitDisabled={false}
+      cancelDisabled={false}
+    />
+  );
+}
+```
+
+#### Props
+
+```typescript
+interface FormButtonsProps {
+  submitLabel?: string;
+  cancelLabel?: string;
+  onCancel?: () => void;
+  submitDisabled?: boolean;
+  cancelDisabled?: boolean;
+}
+```
+
+## API Reference
+
+For a complete API reference, please refer to the TypeScript definitions in the package.

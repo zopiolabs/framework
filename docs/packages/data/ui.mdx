@@ -1,0 +1,666 @@
+---
+title: 'UI Components'
+description: 'React components and hooks for working with data'
+icon: 'window'
+---
+
+# Data UI Components
+
+The UI package provides React components and hooks for working with data in the Zopio framework. It offers a seamless integration between your data providers and React components.
+
+## Features
+
+- **React Hooks**: Hooks for data fetching and manipulation
+- **UI Components**: Ready-to-use components for displaying data
+- **Form Integration**: Tools for building data-driven forms
+- **Optimistic Updates**: Support for optimistic UI updates
+- **Loading States**: Handling loading and error states
+
+## React Hooks
+
+### Data Provider Hook
+
+The `useDataProvider` hook gives you access to the data provider in your components:
+
+```tsx
+import { ui } from '@repo/data';
+
+function MyComponent() {
+  const dataProvider = ui.useDataProvider();
+  
+  const handleClick = async () => {
+    const { data } = await dataProvider.getList({
+      resource: 'users',
+      pagination: { page: 1, perPage: 10 }
+    });
+    console.log(data);
+  };
+  
+  return (
+    <button onClick={handleClick}>Load Users</button>
+  );
+}
+```
+
+### CRUD Operation Hooks
+
+The UI package provides hooks for each CRUD operation:
+
+#### useGetList
+
+```tsx
+import { ui } from '@repo/data';
+
+function UserList() {
+  const { data, loading, error, total, refetch } = ui.useGetList('users', {
+    pagination: { page: 1, perPage: 10 },
+    sort: { field: 'name', order: 'asc' },
+    filter: { role: 'admin' }
+  });
+  
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+  
+  return (
+    <div>
+      <button onClick={refetch}>Refresh</button>
+      <p>Total: {total}</p>
+      <ul>
+        {data.map(user => (
+          <li key={user.id}>{user.name}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+#### useGetOne
+
+```tsx
+import { ui } from '@repo/data';
+
+function UserDetails({ id }) {
+  const { data, loading, error, refetch } = ui.useGetOne('users', id);
+  
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+  
+  return (
+    <div>
+      <button onClick={refetch}>Refresh</button>
+      <h2>{data.name}</h2>
+      <p>Email: {data.email}</p>
+      <p>Role: {data.role}</p>
+    </div>
+  );
+}
+```
+
+#### useCreate
+
+```tsx
+import { ui } from '@repo/data';
+
+function CreateUser() {
+  const [create, { loading, error }] = ui.useCreate('users');
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = {
+      name: formData.get('name'),
+      email: formData.get('email'),
+      role: formData.get('role')
+    };
+    
+    try {
+      const result = await create(data);
+      console.log('Created user:', result.data);
+    } catch (err) {
+      console.error('Failed to create user:', err);
+    }
+  };
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      <div>
+        <label htmlFor="name">Name</label>
+        <input type="text" id="name" name="name" required />
+      </div>
+      <div>
+        <label htmlFor="email">Email</label>
+        <input type="email" id="email" name="email" required />
+      </div>
+      <div>
+        <label htmlFor="role">Role</label>
+        <select id="role" name="role">
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <button type="submit" disabled={loading}>
+        {loading ? 'Creating...' : 'Create User'}
+      </button>
+      {error && <div>Error: {error.message}</div>}
+    </form>
+  );
+}
+```
+
+#### useUpdate
+
+```tsx
+import { ui } from '@repo/data';
+
+function UpdateUser({ id }) {
+  const { data, loading: fetchLoading } = ui.useGetOne('users', id);
+  const [update, { loading: updateLoading, error }] = ui.useUpdate('users');
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = {
+      name: formData.get('name'),
+      email: formData.get('email'),
+      role: formData.get('role')
+    };
+    
+    try {
+      const result = await update(id, data);
+      console.log('Updated user:', result.data);
+    } catch (err) {
+      console.error('Failed to update user:', err);
+    }
+  };
+  
+  if (fetchLoading) return <div>Loading...</div>;
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      <div>
+        <label htmlFor="name">Name</label>
+        <input type="text" id="name" name="name" defaultValue={data.name} required />
+      </div>
+      <div>
+        <label htmlFor="email">Email</label>
+        <input type="email" id="email" name="email" defaultValue={data.email} required />
+      </div>
+      <div>
+        <label htmlFor="role">Role</label>
+        <select id="role" name="role" defaultValue={data.role}>
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <button type="submit" disabled={updateLoading}>
+        {updateLoading ? 'Updating...' : 'Update User'}
+      </button>
+      {error && <div>Error: {error.message}</div>}
+    </form>
+  );
+}
+```
+
+#### useDelete
+
+```tsx
+import { ui } from '@repo/data';
+
+function DeleteUser({ id, onDeleted }) {
+  const [deleteUser, { loading, error }] = ui.useDelete('users');
+  
+  const handleDelete = async () => {
+    if (window.confirm('Are you sure you want to delete this user?')) {
+      try {
+        await deleteUser(id);
+        onDeleted();
+      } catch (err) {
+        console.error('Failed to delete user:', err);
+      }
+    }
+  };
+  
+  return (
+    <div>
+      <button onClick={handleDelete} disabled={loading}>
+        {loading ? 'Deleting...' : 'Delete User'}
+      </button>
+      {error && <div>Error: {error.message}</div>}
+    </div>
+  );
+}
+```
+
+### Mutation Hooks
+
+The UI package provides hooks for mutations with optimistic updates:
+
+```tsx
+import { ui } from '@repo/data';
+
+function ToggleUserStatus({ id, status }) {
+  const { mutate, loading, error } = ui.useMutation({
+    mutationFn: async () => {
+      const newStatus = status === 'active' ? 'inactive' : 'active';
+      const { data } = await dataProvider.update({
+        resource: 'users',
+        id,
+        data: { status: newStatus }
+      });
+      return data;
+    },
+    // Optimistic update
+    optimisticUpdate: {
+      resource: 'users',
+      id,
+      data: { status: status === 'active' ? 'inactive' : 'active' }
+    }
+  });
+  
+  return (
+    <button onClick={mutate} disabled={loading}>
+      {loading ? 'Updating...' : `Mark as ${status === 'active' ? 'Inactive' : 'Active'}`}
+    </button>
+  );
+}
+```
+
+## UI Components
+
+### DataProvider Component
+
+The `DataProvider` component provides the data context to your application:
+
+```tsx
+import { ui } from '@repo/data';
+import { providers } from '@repo/data';
+
+const dataProvider = providers.supabase.createProvider({
+  url: process.env.SUPABASE_URL,
+  key: process.env.SUPABASE_KEY
+});
+
+function App() {
+  return (
+    <ui.DataProvider dataProvider={dataProvider}>
+      <UserList />
+    </ui.DataProvider>
+  );
+}
+```
+
+### DataList Component
+
+The `DataList` component displays a list of resources:
+
+```tsx
+import { ui } from '@repo/data';
+
+function UserList() {
+  return (
+    <ui.DataList
+      resource="users"
+      columns={[
+        { field: 'id', headerName: 'ID' },
+        { field: 'name', headerName: 'Name' },
+        { field: 'email', headerName: 'Email' },
+        { field: 'role', headerName: 'Role' }
+      ]}
+      pagination={{ page: 1, perPage: 10 }}
+      sort={{ field: 'name', order: 'asc' }}
+      filter={{ role: 'admin' }}
+      onRowClick={(row) => console.log('Clicked row:', row)}
+    />
+  );
+}
+```
+
+### DataDetails Component
+
+The `DataDetails` component displays the details of a resource:
+
+```tsx
+import { ui } from '@repo/data';
+
+function UserDetails({ id }) {
+  return (
+    <ui.DataDetails
+      resource="users"
+      id={id}
+      fields={[
+        { field: 'id', label: 'ID' },
+        { field: 'name', label: 'Name' },
+        { field: 'email', label: 'Email' },
+        { field: 'role', label: 'Role' },
+        { field: 'createdAt', label: 'Created At', render: (value) => new Date(value).toLocaleString() }
+      ]}
+    />
+  );
+}
+```
+
+### DataForm Component
+
+The `DataForm` component provides a form for creating or updating a resource:
+
+```tsx
+import { ui } from '@repo/data';
+
+function UserForm({ id }) {
+  return (
+    <ui.DataForm
+      resource="users"
+      id={id} // Omit for create form
+      fields={[
+        { field: 'name', label: 'Name', type: 'text', required: true },
+        { field: 'email', label: 'Email', type: 'email', required: true },
+        { field: 'role', label: 'Role', type: 'select', options: [
+          { value: 'user', label: 'User' },
+          { value: 'admin', label: 'Admin' }
+        ]}
+      ]}
+      onSuccess={(data) => console.log('Form submitted:', data)}
+    />
+  );
+}
+```
+
+### DataPagination Component
+
+The `DataPagination` component provides pagination controls:
+
+```tsx
+import { ui } from '@repo/data';
+
+function UserListPagination() {
+  const [page, setPage] = useState(1);
+  const { data, total } = ui.useGetList('users', {
+    pagination: { page, perPage: 10 }
+  });
+  
+  return (
+    <div>
+      <ul>
+        {data.map(user => (
+          <li key={user.id}>{user.name}</li>
+        ))}
+      </ul>
+      <ui.DataPagination
+        page={page}
+        perPage={10}
+        total={total}
+        onChange={setPage}
+      />
+    </div>
+  );
+}
+```
+
+### DataFilter Component
+
+The `DataFilter` component provides filtering controls:
+
+```tsx
+import { ui } from '@repo/data';
+
+function UserListFilter() {
+  const [filter, setFilter] = useState({});
+  const { data } = ui.useGetList('users', { filter });
+  
+  return (
+    <div>
+      <ui.DataFilter
+        fields={[
+          { field: 'name', label: 'Name', type: 'text' },
+          { field: 'role', label: 'Role', type: 'select', options: [
+            { value: 'user', label: 'User' },
+            { value: 'admin', label: 'Admin' }
+          ]}
+        ]}
+        filter={filter}
+        onChange={setFilter}
+      />
+      <ul>
+        {data.map(user => (
+          <li key={user.id}>{user.name}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+## Form Integration
+
+### useDataForm Hook
+
+The `useDataForm` hook provides form functionality for data operations:
+
+```tsx
+import { ui } from '@repo/data';
+
+function UserForm({ id }) {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    reset,
+    defaultValues
+  } = ui.useDataForm({
+    resource: 'users',
+    id, // Omit for create form
+    onSuccess: (data) => {
+      console.log('Form submitted:', data);
+      reset(data);
+    }
+  });
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      <div>
+        <label htmlFor="name">Name</label>
+        <input id="name" {...register('name', { required: 'Name is required' })} />
+        {errors.name && <span>{errors.name.message}</span>}
+      </div>
+      <div>
+        <label htmlFor="email">Email</label>
+        <input id="email" type="email" {...register('email', { 
+          required: 'Email is required',
+          pattern: {
+            value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+            message: 'Invalid email address'
+          }
+        })} />
+        {errors.email && <span>{errors.email.message}</span>}
+      </div>
+      <div>
+        <label htmlFor="role">Role</label>
+        <select id="role" {...register('role')}>
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? 'Submitting...' : id ? 'Update User' : 'Create User'}
+      </button>
+    </form>
+  );
+}
+```
+
+### Field Components
+
+The UI package provides field components for building forms:
+
+```tsx
+import { ui } from '@repo/data';
+
+function UserForm({ id }) {
+  const { control, handleSubmit, isSubmitting } = ui.useDataForm({
+    resource: 'users',
+    id
+  });
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      <ui.TextField
+        name="name"
+        label="Name"
+        control={control}
+        rules={{ required: 'Name is required' }}
+      />
+      <ui.TextField
+        name="email"
+        label="Email"
+        type="email"
+        control={control}
+        rules={{
+          required: 'Email is required',
+          pattern: {
+            value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+            message: 'Invalid email address'
+          }
+        }}
+      />
+      <ui.SelectField
+        name="role"
+        label="Role"
+        control={control}
+        options={[
+          { value: 'user', label: 'User' },
+          { value: 'admin', label: 'Admin' }
+        ]}
+      />
+      <button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? 'Submitting...' : id ? 'Update User' : 'Create User'}
+      </button>
+    </form>
+  );
+}
+```
+
+## Advanced Usage
+
+### Optimistic Updates
+
+The UI package supports optimistic updates for a better user experience:
+
+```tsx
+import { ui } from '@repo/data';
+
+function ToggleUserStatus({ id, status, onToggle }) {
+  const dataProvider = ui.useDataProvider();
+  const queryClient = ui.useQueryClient();
+  
+  const handleToggle = async () => {
+    const newStatus = status === 'active' ? 'inactive' : 'active';
+    
+    // Optimistically update the UI
+    queryClient.setQueryData(['users', id], (old) => ({
+      ...old,
+      status: newStatus
+    }));
+    
+    try {
+      // Perform the actual update
+      await dataProvider.update({
+        resource: 'users',
+        id,
+        data: { status: newStatus }
+      });
+      
+      // Notify parent component
+      onToggle(newStatus);
+    } catch (error) {
+      // Revert the optimistic update on error
+      queryClient.setQueryData(['users', id], (old) => ({
+        ...old,
+        status
+      }));
+      
+      console.error('Failed to toggle status:', error);
+    }
+  };
+  
+  return (
+    <button onClick={handleToggle}>
+      {status === 'active' ? 'Deactivate' : 'Activate'}
+    </button>
+  );
+}
+```
+
+### Custom Hooks
+
+You can create custom hooks that build on the provided hooks:
+
+```tsx
+import { ui } from '@repo/data';
+
+// Custom hook for user management
+function useUsers() {
+  const { data, loading, error, refetch } = ui.useGetList('users');
+  const [createUser] = ui.useCreate('users');
+  const [updateUser] = ui.useUpdate('users');
+  const [deleteUser] = ui.useDelete('users');
+  
+  const addUser = async (userData) => {
+    await createUser(userData);
+    refetch();
+  };
+  
+  const editUser = async (id, userData) => {
+    await updateUser(id, userData);
+    refetch();
+  };
+  
+  const removeUser = async (id) => {
+    await deleteUser(id);
+    refetch();
+  };
+  
+  return {
+    users: data,
+    loading,
+    error,
+    addUser,
+    editUser,
+    removeUser
+  };
+}
+
+// Usage
+function UserManagement() {
+  const { users, loading, error, addUser, editUser, removeUser } = useUsers();
+  
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+  
+  return (
+    <div>
+      <h2>Users</h2>
+      <ul>
+        {users.map(user => (
+          <li key={user.id}>
+            {user.name}
+            <button onClick={() => editUser(user.id, { role: 'admin' })}>
+              Make Admin
+            </button>
+            <button onClick={() => removeUser(user.id)}>
+              Delete
+            </button>
+          </li>
+        ))}
+      </ul>
+      <button onClick={() => addUser({ name: 'New User', role: 'user' })}>
+        Add User
+      </button>
+    </div>
+  );
+}
+```
+
+## API Reference
+
+For a complete API reference, please refer to the TypeScript definitions in the package.

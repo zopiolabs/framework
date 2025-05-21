@@ -1,0 +1,753 @@
+---
+title: 'Plugin System'
+description: 'Extensibility points for CRUD operations'
+icon: 'puzzle-piece'
+---
+
+# Plugin System
+
+The plugins package in `@repo/crud` provides a powerful extensibility mechanism for CRUD operations. Plugins can intercept and modify the behavior of CRUD operations before and after they are executed.
+
+## Features
+
+- **Hooks System**: Intercept CRUD operations before and after execution
+- **Initialization**: Initialize plugins with access to the CRUD engine
+- **Modular Design**: Easily combine multiple plugins
+- **Built-in Plugins**: Common plugins for logging, validation, and more
+- **Custom Plugins**: Create your own plugins for specific needs
+- **TypeScript Support**: Full TypeScript support with generics
+
+## Basic Usage
+
+### Creating a Plugin
+
+```typescript
+import { engine } from '@repo/crud';
+
+// Create a simple logging plugin
+const loggingPlugin: engine.CrudPlugin = {
+  name: 'logging',
+  initialize: (engine) => {
+    console.log('Logging plugin initialized');
+  },
+  hooks: {
+    beforeGetList: (params) => {
+      console.log('Getting list', params);
+      return params;
+    },
+    afterGetList: (result, params) => {
+      console.log('Got list', result);
+      return result;
+    },
+    beforeGetOne: (params) => {
+      console.log('Getting one', params);
+      return params;
+    },
+    afterGetOne: (result, params) => {
+      console.log('Got one', result);
+      return result;
+    },
+    beforeCreate: (params) => {
+      console.log('Creating', params);
+      return params;
+    },
+    afterCreate: (result, params) => {
+      console.log('Created', result);
+      return result;
+    },
+    beforeUpdate: (params) => {
+      console.log('Updating', params);
+      return params;
+    },
+    afterUpdate: (result, params) => {
+      console.log('Updated', result);
+      return result;
+    },
+    beforeDelete: (params) => {
+      console.log('Deleting', params);
+      return params;
+    },
+    afterDelete: (result, params) => {
+      console.log('Deleted', result);
+      return result;
+    }
+  }
+};
+```
+
+### Using a Plugin
+
+```typescript
+import { engine } from '@repo/crud';
+import { providers } from '@repo/data';
+
+// Create a data provider
+const dataProvider = providers.supabase.createProvider({
+  url: process.env.SUPABASE_URL,
+  key: process.env.SUPABASE_KEY
+});
+
+// Create a CRUD engine with the plugin
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  plugins: [loggingPlugin]
+});
+
+// Now all CRUD operations will be logged
+const result = await crudEngine.getList({
+  resource: 'users',
+  pagination: { page: 1, perPage: 10 }
+});
+```
+
+## Built-in Plugins
+
+### Logging Plugin
+
+The logging plugin logs all CRUD operations:
+
+```typescript
+import { plugins } from '@repo/crud';
+
+// Create a logging plugin
+const loggingPlugin = plugins.createLoggingPlugin({
+  level: 'info', // 'debug', 'info', 'warn', 'error'
+  logger: console, // Custom logger
+  resources: ['users', 'posts'], // Only log these resources
+  operations: ['create', 'update', 'delete'] // Only log these operations
+});
+
+// Use the plugin
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  plugins: [loggingPlugin]
+});
+```
+
+### Validation Plugin
+
+The validation plugin validates data before creating or updating resources:
+
+```typescript
+import { plugins } from '@repo/crud';
+
+// Create a validation plugin
+const validationPlugin = plugins.createValidationPlugin({
+  validators: {
+    users: {
+      create: (data) => {
+        const errors = {};
+        
+        if (!data.name) {
+          errors.name = 'Name is required';
+        }
+        
+        if (!data.email) {
+          errors.email = 'Email is required';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+          errors.email = 'Invalid email format';
+        }
+        
+        return Object.keys(errors).length > 0 ? errors : null;
+      },
+      update: (data) => {
+        const errors = {};
+        
+        if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+          errors.email = 'Invalid email format';
+        }
+        
+        return Object.keys(errors).length > 0 ? errors : null;
+      }
+    },
+    posts: {
+      create: (data) => {
+        const errors = {};
+        
+        if (!data.title) {
+          errors.title = 'Title is required';
+        }
+        
+        if (!data.content) {
+          errors.content = 'Content is required';
+        }
+        
+        return Object.keys(errors).length > 0 ? errors : null;
+      },
+      update: (data) => {
+        const errors = {};
+        
+        if (data.title === '') {
+          errors.title = 'Title cannot be empty';
+        }
+        
+        return Object.keys(errors).length > 0 ? errors : null;
+      }
+    }
+  }
+});
+
+// Use the plugin
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  plugins: [validationPlugin]
+});
+```
+
+### Caching Plugin
+
+The caching plugin caches the results of CRUD operations:
+
+```typescript
+import { plugins } from '@repo/crud';
+
+// Create a caching plugin
+const cachingPlugin = plugins.createCachingPlugin({
+  ttl: 5 * 60 * 1000, // 5 minutes
+  resources: ['users', 'posts'], // Only cache these resources
+  operations: ['getList', 'getOne'], // Only cache these operations
+  keyGenerator: (params) => {
+    // Generate a cache key based on the parameters
+    if (params.resource === 'getList') {
+      return `${params.resource}:${JSON.stringify(params)}`;
+    }
+    return `${params.resource}:${params.id}`;
+  }
+});
+
+// Use the plugin
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  plugins: [cachingPlugin]
+});
+```
+
+### Transformation Plugin
+
+The transformation plugin transforms data before and after CRUD operations:
+
+```typescript
+import { plugins } from '@repo/crud';
+
+// Create a transformation plugin
+const transformationPlugin = plugins.createTransformationPlugin({
+  transformers: {
+    users: {
+      // Transform data before creating a user
+      beforeCreate: (data) => ({
+        ...data,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }),
+      // Transform data before updating a user
+      beforeUpdate: (data) => ({
+        ...data,
+        updatedAt: new Date().toISOString()
+      }),
+      // Transform user data after fetching
+      afterGetOne: (data) => ({
+        ...data,
+        fullName: `${data.firstName} ${data.lastName}`
+      }),
+      // Transform user list after fetching
+      afterGetList: (data) => data.map(user => ({
+        ...user,
+        fullName: `${user.firstName} ${user.lastName}`
+      }))
+    }
+  }
+});
+
+// Use the plugin
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  plugins: [transformationPlugin]
+});
+```
+
+### Soft Delete Plugin
+
+The soft delete plugin implements soft deletion for resources:
+
+```typescript
+import { plugins } from '@repo/crud';
+
+// Create a soft delete plugin
+const softDeletePlugin = plugins.createSoftDeletePlugin({
+  resources: ['users', 'posts'], // Enable soft delete for these resources
+  deletedField: 'deletedAt', // Field to store deletion timestamp
+  filterDeleted: true // Automatically filter out deleted resources
+});
+
+// Use the plugin
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  plugins: [softDeletePlugin]
+});
+
+// Now delete operations will set the deletedAt field instead of actually deleting
+await crudEngine.delete({
+  resource: 'users',
+  id: '123'
+});
+
+// And getList operations will filter out deleted resources
+const { data } = await crudEngine.getList({
+  resource: 'users',
+  pagination: { page: 1, perPage: 10 }
+});
+// data will only include users where deletedAt is null
+```
+
+### Internationalization Plugin
+
+The internationalization plugin adds support for translating resources:
+
+```typescript
+import { plugins } from '@repo/crud';
+
+// Create an internationalization plugin
+const i18nPlugin = plugins.createI18nPlugin({
+  resources: ['posts'], // Enable translations for these resources
+  languages: ['en', 'fr', 'de', 'es', 'tr'], // Supported languages
+  defaultLanguage: 'en', // Default language
+  translatedFields: {
+    posts: ['title', 'content'] // Fields to translate
+  },
+  translationField: 'translations' // Field to store translations
+});
+
+// Use the plugin
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  plugins: [i18nPlugin]
+});
+
+// Create a post with translations
+await crudEngine.create({
+  resource: 'posts',
+  data: {
+    title: 'Hello World', // Default language (en)
+    content: 'This is my first post',
+    translations: {
+      fr: {
+        title: 'Bonjour le Monde',
+        content: 'Ceci est mon premier post'
+      },
+      de: {
+        title: 'Hallo Welt',
+        content: 'Dies ist mein erster Beitrag'
+      }
+    }
+  }
+});
+
+// Get posts in French
+const { data: frenchPosts } = await crudEngine.getList({
+  resource: 'posts',
+  pagination: { page: 1, perPage: 10 },
+  meta: { language: 'fr' }
+});
+// frenchPosts will have title and content in French
+```
+
+## Creating Custom Plugins
+
+### Plugin Interface
+
+```typescript
+interface CrudPlugin {
+  /** Unique name of the plugin */
+  name: string;
+  /** Plugin initialization function */
+  initialize: (engine: CrudEngine) => void;
+  /** Hooks for different CRUD operations */
+  hooks?: {
+    beforeGetList?: (params: GetListParams) => GetListParams;
+    afterGetList?: (result: any, params: GetListParams) => any;
+    beforeGetOne?: (params: GetOneParams) => GetOneParams;
+    afterGetOne?: (result: any, params: GetOneParams) => any;
+    beforeCreate?: (params: CreateParams) => CreateParams;
+    afterCreate?: (result: any, params: CreateParams) => any;
+    beforeUpdate?: (params: UpdateParams) => UpdateParams;
+    afterUpdate?: (result: any, params: UpdateParams) => any;
+    beforeDelete?: (params: DeleteParams) => DeleteParams;
+    afterDelete?: (result: any, params: DeleteParams) => any;
+  };
+}
+```
+
+### Creating a Factory Function
+
+You can create a factory function for your custom plugin:
+
+```typescript
+import { engine } from '@repo/crud';
+
+// Define plugin options
+interface RateLimitPluginOptions {
+  limit: number;
+  windowMs: number;
+  resources?: string[];
+  operations?: ('getList' | 'getOne' | 'create' | 'update' | 'delete')[];
+}
+
+// Create a rate limiting plugin
+function createRateLimitPlugin(options: RateLimitPluginOptions): engine.CrudPlugin {
+  const { limit, windowMs, resources, operations } = options;
+  
+  // Track requests
+  const requests = new Map<string, { count: number, resetAt: number }>();
+  
+  // Check if the operation should be rate limited
+  const shouldRateLimit = (resource: string, operation: string) => {
+    if (resources && !resources.includes(resource)) {
+      return false;
+    }
+    
+    if (operations && !operations.includes(operation as any)) {
+      return false;
+    }
+    
+    return true;
+  };
+  
+  // Check rate limit
+  const checkRateLimit = (resource: string, operation: string) => {
+    const key = `${resource}:${operation}`;
+    const now = Date.now();
+    
+    // Get or create request tracking
+    let tracking = requests.get(key);
+    if (!tracking || tracking.resetAt <= now) {
+      tracking = { count: 0, resetAt: now + windowMs };
+      requests.set(key, tracking);
+    }
+    
+    // Check if limit is exceeded
+    if (tracking.count >= limit) {
+      throw new Error(`Rate limit exceeded for ${operation} on ${resource}`);
+    }
+    
+    // Increment count
+    tracking.count++;
+  };
+  
+  return {
+    name: 'rateLimit',
+    initialize: (engine) => {
+      console.log('Rate limit plugin initialized');
+    },
+    hooks: {
+      beforeGetList: (params) => {
+        if (shouldRateLimit(params.resource, 'getList')) {
+          checkRateLimit(params.resource, 'getList');
+        }
+        return params;
+      },
+      beforeGetOne: (params) => {
+        if (shouldRateLimit(params.resource, 'getOne')) {
+          checkRateLimit(params.resource, 'getOne');
+        }
+        return params;
+      },
+      beforeCreate: (params) => {
+        if (shouldRateLimit(params.resource, 'create')) {
+          checkRateLimit(params.resource, 'create');
+        }
+        return params;
+      },
+      beforeUpdate: (params) => {
+        if (shouldRateLimit(params.resource, 'update')) {
+          checkRateLimit(params.resource, 'update');
+        }
+        return params;
+      },
+      beforeDelete: (params) => {
+        if (shouldRateLimit(params.resource, 'delete')) {
+          checkRateLimit(params.resource, 'delete');
+        }
+        return params;
+      }
+    }
+  };
+}
+
+// Use the plugin
+const rateLimitPlugin = createRateLimitPlugin({
+  limit: 100,
+  windowMs: 60 * 1000, // 1 minute
+  resources: ['users'],
+  operations: ['create', 'update', 'delete']
+});
+
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  plugins: [rateLimitPlugin]
+});
+```
+
+## Combining Plugins
+
+### Plugin Order
+
+Plugins are executed in the order they are provided in the `plugins` array:
+
+```typescript
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  plugins: [
+    loggingPlugin,     // Executed first
+    validationPlugin,  // Executed second
+    cachingPlugin      // Executed third
+  ]
+});
+```
+
+For a `getList` operation, the execution order would be:
+
+1. `loggingPlugin.hooks.beforeGetList`
+2. `validationPlugin.hooks.beforeGetList`
+3. `cachingPlugin.hooks.beforeGetList`
+4. Actual `getList` operation
+5. `cachingPlugin.hooks.afterGetList`
+6. `validationPlugin.hooks.afterGetList`
+7. `loggingPlugin.hooks.afterGetList`
+
+Note that the "after" hooks are executed in reverse order, allowing each plugin to process the result in the reverse order of the "before" hooks.
+
+### Creating a Plugin Composition
+
+You can create a function to compose multiple plugins:
+
+```typescript
+import { engine } from '@repo/crud';
+
+// Compose multiple plugins
+function composePlugins(...plugins: engine.CrudPlugin[]): engine.CrudPlugin {
+  return {
+    name: 'composedPlugin',
+    initialize: (engine) => {
+      // Initialize all plugins
+      plugins.forEach(plugin => plugin.initialize(engine));
+    },
+    hooks: {
+      beforeGetList: (params) => {
+        // Apply all beforeGetList hooks in order
+        return plugins.reduce(
+          (result, plugin) => plugin.hooks?.beforeGetList?.(result) ?? result,
+          params
+        );
+      },
+      afterGetList: (result, params) => {
+        // Apply all afterGetList hooks in reverse order
+        return plugins.reduceRight(
+          (result, plugin) => plugin.hooks?.afterGetList?.(result, params) ?? result,
+          result
+        );
+      },
+      // Implement other hooks similarly
+    }
+  };
+}
+
+// Use the composed plugin
+const composedPlugin = composePlugins(
+  loggingPlugin,
+  validationPlugin,
+  cachingPlugin
+);
+
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  plugins: [composedPlugin]
+});
+```
+
+## Advanced Usage
+
+### Resource-Specific Plugins
+
+You can create plugins that only apply to specific resources:
+
+```typescript
+import { engine } from '@repo/crud';
+
+// Create a resource-specific plugin
+function createResourcePlugin(
+  resourceName: string,
+  plugin: engine.CrudPlugin
+): engine.CrudPlugin {
+  return {
+    name: `${resourceName}:${plugin.name}`,
+    initialize: plugin.initialize,
+    hooks: {
+      beforeGetList: (params) => {
+        if (params.resource === resourceName) {
+          return plugin.hooks?.beforeGetList?.(params) ?? params;
+        }
+        return params;
+      },
+      afterGetList: (result, params) => {
+        if (params.resource === resourceName) {
+          return plugin.hooks?.afterGetList?.(result, params) ?? result;
+        }
+        return result;
+      },
+      // Implement other hooks similarly
+    }
+  };
+}
+
+// Use the resource-specific plugin
+const userValidationPlugin = createResourcePlugin('users', validationPlugin);
+const postValidationPlugin = createResourcePlugin('posts', validationPlugin);
+
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  plugins: [userValidationPlugin, postValidationPlugin]
+});
+```
+
+### Dynamic Plugins
+
+You can create plugins that can be enabled or disabled dynamically:
+
+```typescript
+import { engine } from '@repo/crud';
+
+// Create a dynamic plugin
+function createDynamicPlugin(
+  plugin: engine.CrudPlugin,
+  isEnabled: () => boolean
+): engine.CrudPlugin {
+  return {
+    name: `dynamic:${plugin.name}`,
+    initialize: plugin.initialize,
+    hooks: {
+      beforeGetList: (params) => {
+        if (isEnabled()) {
+          return plugin.hooks?.beforeGetList?.(params) ?? params;
+        }
+        return params;
+      },
+      afterGetList: (result, params) => {
+        if (isEnabled()) {
+          return plugin.hooks?.afterGetList?.(result, params) ?? result;
+        }
+        return result;
+      },
+      // Implement other hooks similarly
+    }
+  };
+}
+
+// Use the dynamic plugin
+let loggingEnabled = true;
+
+const dynamicLoggingPlugin = createDynamicPlugin(
+  loggingPlugin,
+  () => loggingEnabled
+);
+
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  plugins: [dynamicLoggingPlugin]
+});
+
+// Later, you can disable the plugin
+loggingEnabled = false;
+```
+
+### Plugin with State
+
+You can create plugins that maintain state:
+
+```typescript
+import { engine } from '@repo/crud';
+
+// Create a plugin with state
+function createStatefulPlugin(): engine.CrudPlugin {
+  // Plugin state
+  const state = {
+    operationCount: 0,
+    lastOperation: null as string | null,
+    errors: [] as Error[]
+  };
+  
+  return {
+    name: 'stateful',
+    initialize: (engine) => {
+      console.log('Stateful plugin initialized');
+    },
+    hooks: {
+      beforeGetList: (params) => {
+        state.operationCount++;
+        state.lastOperation = 'getList';
+        return params;
+      },
+      beforeGetOne: (params) => {
+        state.operationCount++;
+        state.lastOperation = 'getOne';
+        return params;
+      },
+      beforeCreate: (params) => {
+        state.operationCount++;
+        state.lastOperation = 'create';
+        return params;
+      },
+      beforeUpdate: (params) => {
+        state.operationCount++;
+        state.lastOperation = 'update';
+        return params;
+      },
+      beforeDelete: (params) => {
+        state.operationCount++;
+        state.lastOperation = 'delete';
+        return params;
+      },
+      afterGetList: (result, params) => {
+        return result;
+      },
+      afterGetOne: (result, params) => {
+        return result;
+      },
+      afterCreate: (result, params) => {
+        return result;
+      },
+      afterUpdate: (result, params) => {
+        return result;
+      },
+      afterDelete: (result, params) => {
+        return result;
+      }
+    },
+    // Expose methods to access state
+    getState: () => ({ ...state }),
+    resetState: () => {
+      state.operationCount = 0;
+      state.lastOperation = null;
+      state.errors = [];
+    }
+  };
+}
+
+// Use the stateful plugin
+const statefulPlugin = createStatefulPlugin();
+
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  plugins: [statefulPlugin]
+});
+
+// Later, you can access the plugin state
+console.log(statefulPlugin.getState());
+// { operationCount: 5, lastOperation: 'getList', errors: [] }
+
+// And reset the state
+statefulPlugin.resetState();
+```
+
+## API Reference
+
+For a complete API reference, please refer to the TypeScript definitions in the package.

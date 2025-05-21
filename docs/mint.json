@@ -131,6 +131,29 @@
         "packages/cron",
         "packages/database",
         {
+          "group": "Data Layer",
+          "icon": "layer-group",
+          "pages": [
+            "packages/data",
+            "packages/data/base",
+            "packages/data/providers",
+            "packages/data/ui"
+          ]
+        },
+        {
+          "group": "CRUD System",
+          "icon": "table",
+          "pages": [
+            "packages/crud",
+            "packages/crud/engine",
+            "packages/crud/hooks",
+            "packages/crud/ui",
+            "packages/crud/permissions",
+            "packages/crud/plugins",
+            "packages/crud/audit"
+          ]
+        },
+        {
           "group": "Design System",
           "icon": "palette",
           "pages": [

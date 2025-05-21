@@ -1,0 +1,451 @@
+---
+title: 'Base Package'
+description: 'Core types, interfaces, and utilities for data operations'
+icon: 'cube'
+---
+
+# Data Base Package
+
+The base package provides the core types, interfaces, and utilities for data operations in the Zopio framework. It serves as the foundation for all data providers and UI components.
+
+## Features
+
+- **CrudProvider Interface**: Standard interface for all data providers
+- **Type Definitions**: Comprehensive TypeScript types for data operations
+- **Provider Registry**: System for registering and retrieving data providers
+- **Schema Utilities**: Tools for defining and validating data schemas
+- **Mutation Utilities**: Utilities for data transformations
+
+## Core Types
+
+### CrudProvider Interface
+
+The `CrudProvider` interface is the foundation of the data package, defining a standard set of operations that all data providers must implement:
+
+```typescript
+interface CrudProvider {
+  getList: (params: GetListParams) => Promise<GetListResult>;
+  getOne: (params: GetOneParams) => Promise<GetOneResult>;
+  create: (params: CreateParams) => Promise<CreateResult>;
+  update: (params: UpdateParams) => Promise<UpdateResult>;
+  delete: (params: DeleteParams) => Promise<DeleteResult>;
+}
+```
+
+### Operation Parameters
+
+Each CRUD operation has a specific parameter type:
+
+```typescript
+interface GetListParams {
+  resource: string;
+  pagination?: {
+    page: number;
+    perPage: number;
+  };
+  sort?: {
+    field: string;
+    order: 'asc' | 'desc';
+  };
+  filter?: Record<string, any>;
+}
+
+interface GetOneParams {
+  resource: string;
+  id: string | number;
+}
+
+interface CreateParams {
+  resource: string;
+  data: Record<string, any>;
+}
+
+interface UpdateParams {
+  resource: string;
+  id: string | number;
+  data: Record<string, any>;
+}
+
+interface DeleteParams {
+  resource: string;
+  id: string | number;
+}
+```
+
+### Operation Results
+
+Each CRUD operation returns a specific result type:
+
+```typescript
+interface GetListResult {
+  data: Record<string, any>[];
+  total: number;
+}
+
+interface GetOneResult {
+  data: Record<string, any>;
+}
+
+interface CreateResult {
+  data: Record<string, any>;
+}
+
+interface UpdateResult {
+  data: Record<string, any>;
+}
+
+interface DeleteResult {
+  data: Record<string, any>;
+}
+```
+
+## Provider Utilities
+
+### Creating Data Providers
+
+The base package provides utilities for creating data providers:
+
+```typescript
+import { createDataProvider } from '@repo/data/base';
+
+// Create a data provider using a registered provider type
+const dataProvider = createDataProvider({
+  type: 'supabase',
+  config: {
+    url: process.env.SUPABASE_URL,
+    key: process.env.SUPABASE_KEY,
+  }
+});
+
+// Create a data provider with a custom implementation
+const customProvider = createDataProvider({
+  type: 'custom',
+  implementation: {
+    getList: async (params) => {
+      // Custom implementation
+      return { data: [], total: 0 };
+    },
+    getOne: async (params) => {
+      // Custom implementation
+      return { data: {} };
+    },
+    create: async (params) => {
+      // Custom implementation
+      return { data: {} };
+    },
+    update: async (params) => {
+      // Custom implementation
+      return { data: {} };
+    },
+    delete: async (params) => {
+      // Custom implementation
+      return { data: {} };
+    }
+  }
+});
+```
+
+### Provider Registry
+
+The provider registry allows you to register and retrieve data providers:
+
+```typescript
+import { registerProvider, providerRegistry } from '@repo/data/base';
+
+// Register a custom provider
+registerProvider('custom', {
+  createProvider: (config) => {
+    // Create and return a provider instance
+    return {
+      getList: async (params) => { /* ... */ },
+      getOne: async (params) => { /* ... */ },
+      create: async (params) => { /* ... */ },
+      update: async (params) => { /* ... */ },
+      delete: async (params) => { /* ... */ }
+    };
+  }
+});
+
+// Get a provider factory from the registry
+const providerFactory = providerRegistry.get('supabase');
+const supabaseProvider = providerFactory.createProvider({
+  url: process.env.SUPABASE_URL,
+  key: process.env.SUPABASE_KEY
+});
+```
+
+### Mock Providers
+
+The base package includes utilities for creating mock providers for testing:
+
+```typescript
+import { createMockProvider } from '@repo/data/base';
+
+// Create a mock provider with sample data
+const mockProvider = createMockProvider({
+  users: [
+    { id: '1', name: 'John Doe', email: 'john@example.com' },
+    { id: '2', name: 'Jane Smith', email: 'jane@example.com' }
+  ],
+  posts: [
+    { id: '1', title: 'First Post', content: 'Hello World', userId: '1' },
+    { id: '2', title: 'Second Post', content: 'Another post', userId: '2' }
+  ]
+});
+
+// Use the mock provider
+const result = await mockProvider.getList({
+  resource: 'users',
+  pagination: { page: 1, perPage: 10 }
+});
+// result = { data: [{ id: '1', ... }, { id: '2', ... }], total: 2 }
+```
+
+## Schema Utilities
+
+### Creating Schemas
+
+The base package provides utilities for defining and validating data schemas:
+
+```typescript
+import { createSchema } from '@repo/data/base';
+
+// Define a schema for a user
+const userSchema = createSchema({
+  name: 'user',
+  fields: {
+    id: { type: 'string', primary: true },
+    name: { type: 'string', required: true },
+    email: { type: 'string', required: true, format: 'email' },
+    age: { type: 'number', min: 0, max: 120 },
+    role: { type: 'string', enum: ['admin', 'user', 'guest'] },
+    createdAt: { type: 'date' }
+  }
+});
+
+// Validate data against the schema
+const validationResult = userSchema.validate({
+  name: 'John Doe',
+  email: 'invalid-email',
+  age: 150
+});
+// validationResult = {
+//   valid: false,
+//   errors: [
+//     { field: 'email', message: 'Invalid email format' },
+//     { field: 'age', message: 'Value must be less than or equal to 120' }
+//   ]
+// }
+```
+
+### Schema Registry
+
+The schema registry allows you to register and retrieve schemas:
+
+```typescript
+import { registerSchema, schemaRegistry } from '@repo/data/base';
+
+// Register a schema
+registerSchema(userSchema);
+
+// Get a schema from the registry
+const schema = schemaRegistry.get('user');
+```
+
+## Mutation Utilities
+
+### Data Transformers
+
+The base package provides utilities for data transformations:
+
+```typescript
+import { createTransformer } from '@repo/data/base';
+
+// Create a transformation pipeline
+const transformUser = createTransformer([
+  // Format dates
+  (user) => ({
+    ...user,
+    createdAt: new Date(user.createdAt).toLocaleDateString()
+  }),
+  // Add computed fields
+  (user) => ({
+    ...user,
+    fullName: `${user.firstName} ${user.lastName}`
+  })
+]);
+
+// Apply transformations
+const rawUser = {
+  id: '1',
+  firstName: 'John',
+  lastName: 'Doe',
+  createdAt: '2023-01-01T00:00:00Z'
+};
+const transformedUser = transformUser(rawUser);
+// transformedUser = {
+//   id: '1',
+//   firstName: 'John',
+//   lastName: 'Doe',
+//   createdAt: '1/1/2023',
+//   fullName: 'John Doe'
+// }
+```
+
+### Data Filters
+
+The base package provides utilities for filtering data:
+
+```typescript
+import { createFilter } from '@repo/data/base';
+
+// Create a filter
+const adminFilter = createFilter((user) => user.role === 'admin');
+
+// Apply the filter
+const users = [
+  { id: '1', name: 'John', role: 'admin' },
+  { id: '2', name: 'Jane', role: 'user' },
+  { id: '3', name: 'Bob', role: 'admin' }
+];
+const adminUsers = users.filter(adminFilter);
+// adminUsers = [
+//   { id: '1', name: 'John', role: 'admin' },
+//   { id: '3', name: 'Bob', role: 'admin' }
+// ]
+```
+
+## General Utilities
+
+### Error Handling
+
+The base package provides utilities for error handling:
+
+```typescript
+import { DataError, isDataError } from '@repo/data/base';
+
+// Create a data error
+const error = new DataError({
+  code: 'NOT_FOUND',
+  message: 'Resource not found',
+  resource: 'users',
+  id: '123'
+});
+
+// Check if an error is a data error
+if (isDataError(error)) {
+  console.log(error.code); // 'NOT_FOUND'
+  console.log(error.resource); // 'users'
+  console.log(error.id); // '123'
+}
+```
+
+### Pagination
+
+The base package provides utilities for pagination:
+
+```typescript
+import { createPagination } from '@repo/data/base';
+
+// Create a pagination object
+const pagination = createPagination({
+  page: 2,
+  perPage: 10,
+  total: 25
+});
+
+console.log(pagination.totalPages); // 3
+console.log(pagination.hasNextPage); // true
+console.log(pagination.hasPrevPage); // true
+console.log(pagination.nextPage); // 3
+console.log(pagination.prevPage); // 1
+console.log(pagination.startIndex); // 10
+console.log(pagination.endIndex); // 19
+```
+
+## Advanced Usage
+
+### Custom Provider Types
+
+You can create custom provider types by implementing the `ProviderFactory` interface:
+
+```typescript
+import { ProviderFactory, registerProvider } from '@repo/data/base';
+
+// Create a custom provider factory
+const customProviderFactory: ProviderFactory = {
+  createProvider: (config) => {
+    // Create and return a provider instance
+    return {
+      getList: async (params) => {
+        // Custom implementation
+        return { data: [], total: 0 };
+      },
+      getOne: async (params) => {
+        // Custom implementation
+        return { data: {} };
+      },
+      create: async (params) => {
+        // Custom implementation
+        return { data: {} };
+      },
+      update: async (params) => {
+        // Custom implementation
+        return { data: {} };
+      },
+      delete: async (params) => {
+        // Custom implementation
+        return { data: {} };
+      }
+    };
+  }
+};
+
+// Register the custom provider factory
+registerProvider('custom', customProviderFactory);
+```
+
+### Provider Composition
+
+You can compose multiple providers together:
+
+```typescript
+import { composeProviders } from '@repo/data/base';
+
+// Create a composed provider
+const composedProvider = composeProviders([
+  // Cache provider
+  {
+    getList: async (params, next) => {
+      // Check cache
+      const cached = getFromCache(params);
+      if (cached) return cached;
+      
+      // Call next provider
+      const result = await next(params);
+      
+      // Store in cache
+      storeInCache(params, result);
+      
+      return result;
+    },
+    // Implement other methods
+  },
+  // Logging provider
+  {
+    getList: async (params, next) => {
+      console.log('Getting list', params);
+      const result = await next(params);
+      console.log('Got list', result);
+      return result;
+    },
+    // Implement other methods
+  },
+  // Base provider
+  baseProvider
+]);
+```
+
+## API Reference
+
+For a complete API reference, please refer to the TypeScript definitions in the package.

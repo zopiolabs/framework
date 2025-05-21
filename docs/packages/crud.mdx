@@ -1,0 +1,275 @@
+---
+title: 'Overview'
+description: 'Enhanced CRUD operations with support for permissions, auditing, and plugins'
+icon: 'table'
+---
+
+# CRUD Package
+
+The `@repo/crud` package extends the data package with additional features like permissions, auditing, and plugins. It provides a comprehensive framework for building CRUD (Create, Read, Update, Delete) operations in your application.
+
+## Features
+
+- **Enhanced CRUD Operations**: Built on top of the data package with additional functionality
+- **Permissions System**: Fine-grained access control for CRUD operations
+- **Audit Logging**: Track changes to data with detailed audit logs
+- **Plugin Architecture**: Extend functionality with custom plugins
+- **React Integration**: Hooks and components for seamless React integration
+- **Internationalization**: Support for multiple languages
+- **Customizable UI**: Flexible UI components for building admin interfaces
+
+## Installation
+
+This package is part of the Zopio monorepo and is available to all applications in the workspace.
+
+```bash
+# If you're adding it to a new package in the monorepo
+pnpm add @repo/crud
+```
+
+## Package Structure
+
+The CRUD package is organized into several subpackages:
+
+- **Engine**: Core CRUD functionality built on top of data providers
+- **Hooks**: React hooks for CRUD operations
+- **UI**: UI components for CRUD operations
+- **Permissions**: Access control for CRUD operations
+- **Plugins**: Extensibility points for CRUD operations
+- **Audit**: Tracking changes to data
+
+## Dependencies
+
+The CRUD package depends on the following packages:
+
+- **@repo/data**: Core data management and provider packages
+- **next-intl**: Internationalization support
+
+## Basic Usage
+
+### Creating a CRUD Engine
+
+```typescript
+import { engine } from '@repo/crud';
+import { providers } from '@repo/data';
+
+// Create a data provider
+const dataProvider = providers.supabase.createProvider({
+  url: process.env.SUPABASE_URL,
+  key: process.env.SUPABASE_KEY
+});
+
+// Create a CRUD engine
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  enableAudit: true,
+  enablePermissions: true,
+  plugins: [],
+  defaultLocale: 'en',
+  supportedLocales: ['en', 'fr', 'de', 'es', 'tr']
+});
+```
+
+### Performing CRUD Operations
+
+```typescript
+// Get a list of resources
+const { data, total } = await crudEngine.getList({
+  resource: 'users',
+  pagination: { page: 1, perPage: 10 },
+  sort: { field: 'createdAt', order: 'desc' },
+  filter: { role: 'admin' }
+});
+
+// Get a single resource
+const { data: user } = await crudEngine.getOne({
+  resource: 'users',
+  id: '123'
+});
+
+// Create a resource
+const { data: newUser } = await crudEngine.create({
+  resource: 'users',
+  data: { name: 'John Doe', email: 'john@example.com' }
+});
+
+// Update a resource
+const { data: updatedUser } = await crudEngine.update({
+  resource: 'users',
+  id: '123',
+  data: { name: 'John Smith' }
+});
+
+// Delete a resource
+const { data: deletedUser } = await crudEngine.delete({
+  resource: 'users',
+  id: '123'
+});
+```
+
+### Using React Hooks
+
+```tsx
+import { hooks } from '@repo/crud';
+
+function UserList() {
+  // Fetch a list of users
+  const { data, loading, error, refetch } = hooks.useGetList('users', {
+    pagination: { page: 1, perPage: 10 },
+    sort: { field: 'createdAt', order: 'desc' }
+  });
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+
+  return (
+    <div>
+      <button onClick={() => refetch()}>Refresh</button>
+      <ul>
+        {data.map(user => (
+          <li key={user.id}>{user.name}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+### Using UI Components
+
+```tsx
+import { ui } from '@repo/crud';
+
+function UserManagement() {
+  return (
+    <ui.CrudProvider>
+      <ui.ResourceList
+        resource="users"
+        columns={[
+          { field: 'id', headerName: 'ID' },
+          { field: 'name', headerName: 'Name' },
+          { field: 'email', headerName: 'Email' },
+          { field: 'role', headerName: 'Role' }
+        ]}
+        actions={['view', 'edit', 'delete']}
+        pagination
+        sorting
+        filtering
+      />
+    </ui.CrudProvider>
+  );
+}
+```
+
+## Detailed Documentation
+
+For more detailed information on using the CRUD package, see the following pages:
+
+- [Engine](/packages/crud/engine) - Core CRUD functionality
+- [Hooks](/packages/crud/hooks) - React hooks for CRUD operations
+- [UI Components](/packages/crud/ui) - UI components for CRUD operations
+- [Permissions](/packages/crud/permissions) - Access control system
+- [Plugins](/packages/crud/plugins) - Plugin system and available plugins
+- [Audit](/packages/crud/audit) - Audit logging system
+- [Internationalization](/packages/crud/i18n) - Internationalization support
+
+## Core Concepts
+
+### CRUD Engine
+
+The CRUD Engine is the core of the package, providing enhanced CRUD operations with support for plugins, permissions, and auditing. It wraps a data provider from the `@repo/data` package and adds additional functionality.
+
+```typescript
+interface CrudEngineOptions {
+  /** The data provider to use */
+  dataProvider: CrudProvider;
+  /** Enable auditing of operations */
+  enableAudit?: boolean;
+  /** Enable permissions checking */
+  enablePermissions?: boolean;
+  /** Plugins to use */
+  plugins?: CrudPlugin[];
+  /** Default locale for internationalization */
+  defaultLocale?: string;
+  /** Supported locales for internationalization */
+  supportedLocales?: string[];
+}
+```
+
+### Plugin System
+
+The plugin system allows you to extend the functionality of the CRUD engine with custom hooks that run before and after CRUD operations:
+
+```typescript
+interface CrudPlugin {
+  /** Unique name of the plugin */
+  name: string;
+  /** Plugin initialization function */
+  initialize: (engine: CrudEngine) => void;
+  /** Hooks for different CRUD operations */
+  hooks?: {
+    beforeGetList?: (params: GetListParams) => GetListParams;
+    afterGetList?: (result: any, params: GetListParams) => any;
+    beforeGetOne?: (params: GetOneParams) => GetOneParams;
+    afterGetOne?: (result: any, params: GetOneParams) => any;
+    beforeCreate?: (params: CreateParams) => CreateParams;
+    afterCreate?: (result: any, params: CreateParams) => any;
+    beforeUpdate?: (params: UpdateParams) => UpdateParams;
+    afterUpdate?: (result: any, params: UpdateParams) => any;
+    beforeDelete?: (params: DeleteParams) => DeleteParams;
+    afterDelete?: (result: any, params: DeleteParams) => any;
+  };
+}
+```
+
+### Permissions System
+
+The permissions system provides fine-grained access control for CRUD operations, allowing you to define who can perform which operations on which resources:
+
+```typescript
+interface PermissionsProvider {
+  getPermissions: (user: any) => Promise<ResourcePermissions>;
+}
+
+interface ResourcePermissions {
+  [resource: string]: {
+    read: boolean | ((user: any, resource: any) => boolean);
+    create: boolean | ((user: any, data: any) => boolean);
+    update: boolean | ((user: any, resource: any, data: any) => boolean);
+    delete: boolean | ((user: any, resource: any) => boolean);
+  };
+}
+```
+
+### Audit System
+
+The audit system tracks changes to data, recording who made what changes and when:
+
+```typescript
+interface AuditProvider {
+  logAudit: (auditLog: AuditLog) => Promise<void>;
+}
+
+interface AuditLog {
+  timestamp: Date;
+  user: any;
+  action: 'create' | 'update' | 'delete';
+  resource: string;
+  resourceId: string;
+  data?: any;
+  previousData?: any;
+}
+```
+
+## Environment Variables
+
+The CRUD package may use the following environment variables:
+
+| Variable | Description | Required |
+| --- | --- | --- |
+| `NEXT_PUBLIC_DEFAULT_LOCALE` | Default locale for internationalization | No (defaults to 'en') |
+| `NEXT_PUBLIC_SUPPORTED_LOCALES` | Comma-separated list of supported locales | No (defaults to ['en']) |
+
+## API Reference
+
+For a complete API reference, please refer to the TypeScript definitions in the package or explore the detailed documentation pages.

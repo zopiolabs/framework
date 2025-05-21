@@ -1,0 +1,885 @@
+---
+title: 'Audit System'
+description: 'Tracking changes to data'
+icon: 'clipboard-check'
+---
+
+# Audit System
+
+The audit package in `@repo/crud` provides a comprehensive system for tracking changes to data. It automatically logs all create, update, and delete operations, recording who made what changes and when.
+
+## Features
+
+- **Automatic Logging**: Automatically log all data changes
+- **User Tracking**: Record which user made each change
+- **Change Tracking**: Record the exact changes made to data
+- **Flexible Storage**: Store audit logs in any database or service
+- **Customizable**: Configure what gets logged and how
+- **TypeScript Support**: Full TypeScript support with generics
+
+## Basic Usage
+
+### Setting Up Audit Logging
+
+```typescript
+import { audit } from '@repo/crud';
+import { engine } from '@repo/crud';
+import { providers } from '@repo/data';
+
+// Create an audit provider
+const auditProvider = audit.createAuditProvider({
+  logAudit: async (auditLog) => {
+    // Store audit log in database
+    await db.auditLogs.create(auditLog);
+  }
+});
+
+// Create a data provider
+const dataProvider = providers.supabase.createProvider({
+  url: process.env.SUPABASE_URL,
+  key: process.env.SUPABASE_KEY
+});
+
+// Create a CRUD engine with audit logging
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  enableAudit: true,
+  auditProvider
+});
+```
+
+### Setting the Current User
+
+Before performing CRUD operations, you need to set the current user:
+
+```typescript
+import { audit } from '@repo/crud';
+
+// Set the current user
+audit.setUser({
+  id: '123',
+  name: 'John Doe',
+  email: 'john@example.com'
+});
+
+// Now CRUD operations will include this user in audit logs
+const result = await crudEngine.create({
+  resource: 'posts',
+  data: { title: 'New Post', content: 'Hello World' }
+});
+```
+
+### Integration with Authentication
+
+You can integrate the audit system with your authentication system:
+
+```typescript
+import { audit } from '@repo/crud';
+import { useAuth } from '@repo/auth';
+
+function AuditProvider({ children }) {
+  const { user } = useAuth();
+
+  // Set the current user whenever it changes
+  useEffect(() => {
+    if (user) {
+      audit.setUser(user);
+    } else {
+      audit.clearUser();
+    }
+  }, [user]);
+
+  return children;
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AuditProvider>
+        <YourApp />
+      </AuditProvider>
+    </AuthProvider>
+  );
+}
+```
+
+## Audit Log Structure
+
+### Audit Log Interface
+
+```typescript
+interface AuditLog {
+  /** Timestamp of the audit log */
+  timestamp: Date;
+  /** User who performed the action */
+  user: {
+    id: string | number;
+    name?: string;
+    email?: string;
+    [key: string]: any;
+  };
+  /** Action performed */
+  action: 'create' | 'update' | 'delete';
+  /** Resource type */
+  resource: string;
+  /** Resource ID */
+  resourceId: string | number;
+  /** New data (for create and update) */
+  data?: Record<string, any>;
+  /** Previous data (for update and delete) */
+  previousData?: Record<string, any>;
+  /** Changes made (for update) */
+  changes?: {
+    [field: string]: {
+      from: any;
+      to: any;
+    };
+  };
+  /** Additional metadata */
+  meta?: Record<string, any>;
+}
+```
+
+### Example Audit Logs
+
+#### Create Operation
+
+```typescript
+// Audit log for a create operation
+{
+  timestamp: new Date('2025-05-21T13:45:30.000Z'),
+  user: {
+    id: '123',
+    name: 'John Doe',
+    email: 'john@example.com'
+  },
+  action: 'create',
+  resource: 'posts',
+  resourceId: '456',
+  data: {
+    id: '456',
+    title: 'New Post',
+    content: 'Hello World',
+    createdAt: '2025-05-21T13:45:30.000Z'
+  }
+}
+```
+
+#### Update Operation
+
+```typescript
+// Audit log for an update operation
+{
+  timestamp: new Date('2025-05-21T14:30:45.000Z'),
+  user: {
+    id: '123',
+    name: 'John Doe',
+    email: 'john@example.com'
+  },
+  action: 'update',
+  resource: 'posts',
+  resourceId: '456',
+  data: {
+    id: '456',
+    title: 'Updated Post',
+    content: 'Hello World Updated',
+    createdAt: '2025-05-21T13:45:30.000Z',
+    updatedAt: '2025-05-21T14:30:45.000Z'
+  },
+  previousData: {
+    id: '456',
+    title: 'New Post',
+    content: 'Hello World',
+    createdAt: '2025-05-21T13:45:30.000Z'
+  },
+  changes: {
+    title: {
+      from: 'New Post',
+      to: 'Updated Post'
+    },
+    content: {
+      from: 'Hello World',
+      to: 'Hello World Updated'
+    },
+    updatedAt: {
+      from: undefined,
+      to: '2025-05-21T14:30:45.000Z'
+    }
+  }
+}
+```
+
+#### Delete Operation
+
+```typescript
+// Audit log for a delete operation
+{
+  timestamp: new Date('2025-05-21T15:20:10.000Z'),
+  user: {
+    id: '123',
+    name: 'John Doe',
+    email: 'john@example.com'
+  },
+  action: 'delete',
+  resource: 'posts',
+  resourceId: '456',
+  previousData: {
+    id: '456',
+    title: 'Updated Post',
+    content: 'Hello World Updated',
+    createdAt: '2025-05-21T13:45:30.000Z',
+    updatedAt: '2025-05-21T14:30:45.000Z'
+  }
+}
+```
+
+## Audit Providers
+
+### Creating an Audit Provider
+
+You can create an audit provider to store audit logs in any database or service:
+
+```typescript
+import { audit } from '@repo/crud';
+
+// Create an audit provider for a SQL database
+const sqlAuditProvider = audit.createAuditProvider({
+  logAudit: async (auditLog) => {
+    // Store audit log in SQL database
+    await db.execute(`
+      INSERT INTO audit_logs (
+        timestamp, user_id, user_name, user_email, action, resource, resource_id,
+        data, previous_data, changes, meta
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      auditLog.timestamp,
+      auditLog.user.id,
+      auditLog.user.name,
+      auditLog.user.email,
+      auditLog.action,
+      auditLog.resource,
+      auditLog.resourceId,
+      JSON.stringify(auditLog.data),
+      JSON.stringify(auditLog.previousData),
+      JSON.stringify(auditLog.changes),
+      JSON.stringify(auditLog.meta)
+    ]);
+  }
+});
+
+// Create an audit provider for MongoDB
+const mongoAuditProvider = audit.createAuditProvider({
+  logAudit: async (auditLog) => {
+    // Store audit log in MongoDB
+    await db.collection('auditLogs').insertOne(auditLog);
+  }
+});
+
+// Create an audit provider for a logging service
+const loggingServiceAuditProvider = audit.createAuditProvider({
+  logAudit: async (auditLog) => {
+    // Send audit log to logging service
+    await fetch('https://logging-service.example.com/api/logs', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.LOGGING_SERVICE_API_KEY}`
+      },
+      body: JSON.stringify({
+        type: 'audit',
+        timestamp: auditLog.timestamp.toISOString(),
+        user: auditLog.user.id,
+        action: auditLog.action,
+        resource: auditLog.resource,
+        resourceId: auditLog.resourceId,
+        changes: auditLog.changes
+      })
+    });
+  }
+});
+```
+
+### Multiple Audit Providers
+
+You can use multiple audit providers to store audit logs in different places:
+
+```typescript
+import { audit } from '@repo/crud';
+
+// Create a composite audit provider
+const compositeAuditProvider = audit.createCompositeAuditProvider([
+  // Store in database
+  audit.createAuditProvider({
+    logAudit: async (auditLog) => {
+      await db.auditLogs.create(auditLog);
+    }
+  }),
+  // Also log to console
+  audit.createAuditProvider({
+    logAudit: async (auditLog) => {
+      console.log('Audit Log:', auditLog);
+    }
+  }),
+  // Also send to logging service
+  audit.createAuditProvider({
+    logAudit: async (auditLog) => {
+      await fetch('https://logging-service.example.com/api/logs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.LOGGING_SERVICE_API_KEY}`
+        },
+        body: JSON.stringify({
+          type: 'audit',
+          timestamp: auditLog.timestamp.toISOString(),
+          user: auditLog.user.id,
+          action: auditLog.action,
+          resource: auditLog.resource,
+          resourceId: auditLog.resourceId,
+          changes: auditLog.changes
+        })
+      });
+    }
+  })
+]);
+
+// Use the composite audit provider
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  enableAudit: true,
+  auditProvider: compositeAuditProvider
+});
+```
+
+## Customizing Audit Logs
+
+### Filtering Audit Logs
+
+You can filter which operations are logged:
+
+```typescript
+import { audit } from '@repo/crud';
+
+// Create an audit provider with filtering
+const filteredAuditProvider = audit.createAuditProvider({
+  logAudit: async (auditLog) => {
+    await db.auditLogs.create(auditLog);
+  },
+  filter: (auditLog) => {
+    // Only log create and delete operations
+    if (auditLog.action === 'update') {
+      return false;
+    }
+    
+    // Only log certain resources
+    if (!['users', 'posts', 'comments'].includes(auditLog.resource)) {
+      return false;
+    }
+    
+    // Only log changes made by non-admin users
+    if (auditLog.user.role === 'admin') {
+      return false;
+    }
+    
+    return true;
+  }
+});
+
+// Use the filtered audit provider
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  enableAudit: true,
+  auditProvider: filteredAuditProvider
+});
+```
+
+### Transforming Audit Logs
+
+You can transform audit logs before they are stored:
+
+```typescript
+import { audit } from '@repo/crud';
+
+// Create an audit provider with transformation
+const transformedAuditProvider = audit.createAuditProvider({
+  logAudit: async (auditLog) => {
+    await db.auditLogs.create(auditLog);
+  },
+  transform: (auditLog) => {
+    // Add additional metadata
+    auditLog.meta = {
+      ...auditLog.meta,
+      environment: process.env.NODE_ENV,
+      appVersion: process.env.APP_VERSION
+    };
+    
+    // Remove sensitive data
+    if (auditLog.data && auditLog.data.password) {
+      auditLog.data.password = '[REDACTED]';
+    }
+    
+    if (auditLog.previousData && auditLog.previousData.password) {
+      auditLog.previousData.password = '[REDACTED]';
+    }
+    
+    if (auditLog.changes && auditLog.changes.password) {
+      auditLog.changes.password = {
+        from: '[REDACTED]',
+        to: '[REDACTED]'
+      };
+    }
+    
+    return auditLog;
+  }
+});
+
+// Use the transformed audit provider
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  enableAudit: true,
+  auditProvider: transformedAuditProvider
+});
+```
+
+### Resource-Specific Audit Configuration
+
+You can configure audit logging differently for each resource:
+
+```typescript
+import { audit } from '@repo/crud';
+
+// Create an audit provider with resource-specific configuration
+const resourceSpecificAuditProvider = audit.createAuditProvider({
+  logAudit: async (auditLog) => {
+    await db.auditLogs.create(auditLog);
+  },
+  resources: {
+    users: {
+      // Only log create and delete operations for users
+      actions: ['create', 'delete'],
+      // Exclude sensitive fields
+      excludeFields: ['password', 'ssn', 'creditCard']
+    },
+    posts: {
+      // Log all operations for posts
+      actions: ['create', 'update', 'delete'],
+      // Only include these fields in the audit log
+      includeFields: ['id', 'title', 'content', 'userId', 'status']
+    },
+    comments: {
+      // Log all operations for comments
+      actions: ['create', 'update', 'delete'],
+      // Custom transform function for comments
+      transform: (auditLog) => {
+        // Add the post ID to the metadata
+        if (auditLog.data && auditLog.data.postId) {
+          auditLog.meta = {
+            ...auditLog.meta,
+            postId: auditLog.data.postId
+          };
+        }
+        return auditLog;
+      }
+    }
+  }
+});
+
+// Use the resource-specific audit provider
+const crudEngine = engine.createCrudEngine({
+  dataProvider,
+  enableAudit: true,
+  auditProvider: resourceSpecificAuditProvider
+});
+```
+
+## Querying Audit Logs
+
+### Basic Queries
+
+Once you have stored audit logs, you can query them:
+
+```typescript
+// Get all audit logs
+const allAuditLogs = await db.auditLogs.findMany();
+
+// Get audit logs for a specific resource
+const userAuditLogs = await db.auditLogs.findMany({
+  where: { resource: 'users' }
+});
+
+// Get audit logs for a specific resource ID
+const userAuditLogs = await db.auditLogs.findMany({
+  where: {
+    resource: 'users',
+    resourceId: '123'
+  }
+});
+
+// Get audit logs for a specific action
+const createAuditLogs = await db.auditLogs.findMany({
+  where: { action: 'create' }
+});
+
+// Get audit logs for a specific user
+const userAuditLogs = await db.auditLogs.findMany({
+  where: { 'user.id': '123' }
+});
+
+// Get audit logs for a specific time period
+const recentAuditLogs = await db.auditLogs.findMany({
+  where: {
+    timestamp: {
+      gte: new Date('2025-05-01T00:00:00.000Z'),
+      lte: new Date('2025-05-31T23:59:59.999Z')
+    }
+  }
+});
+```
+
+### Advanced Queries
+
+You can also perform more advanced queries:
+
+```typescript
+// Get audit logs for changes to a specific field
+const titleChangeAuditLogs = await db.auditLogs.findMany({
+  where: {
+    action: 'update',
+    'changes.title': { exists: true }
+  }
+});
+
+// Get audit logs for a specific change
+const statusChangeAuditLogs = await db.auditLogs.findMany({
+  where: {
+    action: 'update',
+    'changes.status.from': 'draft',
+    'changes.status.to': 'published'
+  }
+});
+
+// Get audit logs with specific metadata
+const productionAuditLogs = await db.auditLogs.findMany({
+  where: {
+    'meta.environment': 'production'
+  }
+});
+```
+
+## UI Integration
+
+### Displaying Audit Logs
+
+You can create a UI to display audit logs:
+
+```tsx
+import { useState, useEffect } from 'react';
+
+function AuditLogList() {
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  useEffect(() => {
+    async function fetchAuditLogs() {
+      try {
+        const response = await fetch('/api/audit-logs');
+        const data = await response.json();
+        setAuditLogs(data);
+        setLoading(false);
+      } catch (err) {
+        setError(err.message);
+        setLoading(false);
+      }
+    }
+    
+    fetchAuditLogs();
+  }, []);
+  
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
+  
+  return (
+    <div>
+      <h2>Audit Logs</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>User</th>
+            <th>Action</th>
+            <th>Resource</th>
+            <th>Resource ID</th>
+            <th>Changes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {auditLogs.map(log => (
+            <tr key={log.id}>
+              <td>{new Date(log.timestamp).toLocaleString()}</td>
+              <td>{log.user.name || log.user.id}</td>
+              <td>{log.action}</td>
+              <td>{log.resource}</td>
+              <td>{log.resourceId}</td>
+              <td>
+                {log.changes && (
+                  <ul>
+                    {Object.entries(log.changes).map(([field, change]) => (
+                      <li key={field}>
+                        {field}: {JSON.stringify(change.from)} → {JSON.stringify(change.to)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+```
+
+### Filtering Audit Logs in the UI
+
+You can add filtering to the audit log UI:
+
+```tsx
+import { useState, useEffect } from 'react';
+
+function AuditLogList() {
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [filters, setFilters] = useState({
+    resource: '',
+    action: '',
+    userId: '',
+    startDate: '',
+    endDate: ''
+  });
+  
+  useEffect(() => {
+    async function fetchAuditLogs() {
+      try {
+        // Build query string from filters
+        const queryParams = new URLSearchParams();
+        if (filters.resource) queryParams.set('resource', filters.resource);
+        if (filters.action) queryParams.set('action', filters.action);
+        if (filters.userId) queryParams.set('userId', filters.userId);
+        if (filters.startDate) queryParams.set('startDate', filters.startDate);
+        if (filters.endDate) queryParams.set('endDate', filters.endDate);
+        
+        const response = await fetch(`/api/audit-logs?${queryParams.toString()}`);
+        const data = await response.json();
+        setAuditLogs(data);
+        setLoading(false);
+      } catch (err) {
+        setError(err.message);
+        setLoading(false);
+      }
+    }
+    
+    fetchAuditLogs();
+  }, [filters]);
+  
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+  
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
+  
+  return (
+    <div>
+      <h2>Audit Logs</h2>
+      <div className="filters">
+        <div>
+          <label htmlFor="resource">Resource:</label>
+          <select
+            id="resource"
+            name="resource"
+            value={filters.resource}
+            onChange={handleFilterChange}
+          >
+            <option value="">All</option>
+            <option value="users">Users</option>
+            <option value="posts">Posts</option>
+            <option value="comments">Comments</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="action">Action:</label>
+          <select
+            id="action"
+            name="action"
+            value={filters.action}
+            onChange={handleFilterChange}
+          >
+            <option value="">All</option>
+            <option value="create">Create</option>
+            <option value="update">Update</option>
+            <option value="delete">Delete</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="userId">User ID:</label>
+          <input
+            type="text"
+            id="userId"
+            name="userId"
+            value={filters.userId}
+            onChange={handleFilterChange}
+          />
+        </div>
+        <div>
+          <label htmlFor="startDate">Start Date:</label>
+          <input
+            type="date"
+            id="startDate"
+            name="startDate"
+            value={filters.startDate}
+            onChange={handleFilterChange}
+          />
+        </div>
+        <div>
+          <label htmlFor="endDate">End Date:</label>
+          <input
+            type="date"
+            id="endDate"
+            name="endDate"
+            value={filters.endDate}
+            onChange={handleFilterChange}
+          />
+        </div>
+      </div>
+      <table>
+        {/* Table content as before */}
+      </table>
+    </div>
+  );
+}
+```
+
+## Advanced Usage
+
+### Custom Audit Context
+
+You can provide additional context to audit logs:
+
+```typescript
+import { audit } from '@repo/crud';
+
+// Set the current user
+audit.setUser({
+  id: '123',
+  name: 'John Doe',
+  email: 'john@example.com'
+});
+
+// Set additional context
+audit.setContext({
+  requestId: '456',
+  clientIp: '192.168.1.1',
+  userAgent: 'Mozilla/5.0 ...',
+  sessionId: '789'
+});
+
+// Now CRUD operations will include this context in audit logs
+const result = await crudEngine.create({
+  resource: 'posts',
+  data: { title: 'New Post', content: 'Hello World' }
+});
+```
+
+### Audit Events
+
+You can listen for audit events:
+
+```typescript
+import { audit } from '@repo/crud';
+
+// Listen for audit events
+audit.on('log', (auditLog) => {
+  console.log('Audit Log:', auditLog);
+});
+
+// Listen for specific audit events
+audit.on('create', (auditLog) => {
+  console.log('Create Audit Log:', auditLog);
+});
+
+audit.on('update', (auditLog) => {
+  console.log('Update Audit Log:', auditLog);
+});
+
+audit.on('delete', (auditLog) => {
+  console.log('Delete Audit Log:', auditLog);
+});
+
+// Remove event listeners
+audit.off('log');
+```
+
+### Audit Hooks
+
+You can use hooks to modify audit logs before they are stored:
+
+```typescript
+import { audit } from '@repo/crud';
+
+// Add a hook to modify audit logs
+audit.addHook('beforeLog', (auditLog) => {
+  // Add additional metadata
+  auditLog.meta = {
+    ...auditLog.meta,
+    environment: process.env.NODE_ENV,
+    appVersion: process.env.APP_VERSION
+  };
+  
+  return auditLog;
+});
+
+// Add a hook to filter audit logs
+audit.addHook('beforeLog', (auditLog) => {
+  // Don't log changes to the 'updatedAt' field
+  if (auditLog.changes && auditLog.changes.updatedAt) {
+    delete auditLog.changes.updatedAt;
+  }
+  
+  return auditLog;
+});
+
+// Remove a hook
+audit.removeHook('beforeLog');
+```
+
+### Manual Audit Logging
+
+You can manually log audit events:
+
+```typescript
+import { audit } from '@repo/crud';
+
+// Manually log an audit event
+audit.log({
+  action: 'custom',
+  resource: 'system',
+  resourceId: 'backup',
+  data: {
+    status: 'success',
+    files: 42,
+    size: '1.2GB'
+  },
+  meta: {
+    duration: 1250,
+    backupId: '123'
+  }
+});
+```
+
+## API Reference
+
+For a complete API reference, please refer to the TypeScript definitions in the package.

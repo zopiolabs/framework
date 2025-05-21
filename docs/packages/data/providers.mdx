@@ -1,0 +1,575 @@
+---
+title: 'Provider System'
+description: 'Available data providers and how to use them'
+icon: 'database'
+---
+
+# Data Provider System
+
+The provider system in the `@repo/data` package offers a collection of data providers that implement the CrudProvider interface for various data sources. This allows you to interact with different backends using a consistent API.
+
+## Available Providers
+
+The package includes providers for various data sources:
+
+- **Supabase**: For PostgreSQL databases with Supabase
+- **Firebase**: For Firebase Realtime Database and Firestore
+- **REST API**: For RESTful APIs
+- **GraphQL**: For GraphQL APIs
+- **Mock**: For testing and development
+
+## Supabase Provider
+
+The Supabase provider allows you to connect to a PostgreSQL database using Supabase.
+
+### Configuration
+
+```typescript
+import { providers } from '@repo/data';
+
+const supabaseProvider = providers.supabase.createProvider({
+  url: process.env.SUPABASE_URL,
+  key: process.env.SUPABASE_KEY,
+  schema: 'public', // optional, defaults to 'public'
+  options: {
+    // Additional Supabase client options
+  }
+});
+```
+
+### Usage
+
+```typescript
+// Get a list of users
+const { data, total } = await supabaseProvider.getList({
+  resource: 'users',
+  pagination: { page: 1, perPage: 10 },
+  sort: { field: 'created_at', order: 'desc' },
+  filter: { role: 'admin' }
+});
+
+// Get a single user
+const { data: user } = await supabaseProvider.getOne({
+  resource: 'users',
+  id: '123'
+});
+
+// Create a user
+const { data: newUser } = await supabaseProvider.create({
+  resource: 'users',
+  data: { name: 'John Doe', email: 'john@example.com' }
+});
+
+// Update a user
+const { data: updatedUser } = await supabaseProvider.update({
+  resource: 'users',
+  id: '123',
+  data: { name: 'John Smith' }
+});
+
+// Delete a user
+const { data: deletedUser } = await supabaseProvider.delete({
+  resource: 'users',
+  id: '123'
+});
+```
+
+### Advanced Features
+
+The Supabase provider supports advanced features like:
+
+- **Relations**: Automatically fetch related data
+- **RLS Policies**: Work with Row Level Security policies
+- **Full-text Search**: Use Supabase's full-text search capabilities
+- **Realtime**: Subscribe to realtime updates
+
+```typescript
+// Get users with related posts
+const { data } = await supabaseProvider.getList({
+  resource: 'users',
+  include: ['posts']
+});
+
+// Use full-text search
+const { data } = await supabaseProvider.getList({
+  resource: 'posts',
+  filter: {
+    _search: 'typescript react'
+  }
+});
+```
+
+## Firebase Provider
+
+The Firebase provider allows you to connect to Firebase Realtime Database or Firestore.
+
+### Configuration
+
+```typescript
+import { providers } from '@repo/data';
+
+// Firestore provider
+const firestoreProvider = providers.firebase.createProvider({
+  type: 'firestore',
+  config: {
+    apiKey: process.env.FIREBASE_API_KEY,
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.FIREBASE_PROJECT_ID
+  }
+});
+
+// Realtime Database provider
+const realtimeProvider = providers.firebase.createProvider({
+  type: 'realtime',
+  config: {
+    apiKey: process.env.FIREBASE_API_KEY,
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+    databaseURL: process.env.FIREBASE_DATABASE_URL
+  }
+});
+```
+
+### Usage
+
+```typescript
+// Get a list of users
+const { data, total } = await firestoreProvider.getList({
+  resource: 'users',
+  pagination: { page: 1, perPage: 10 },
+  sort: { field: 'createdAt', order: 'desc' },
+  filter: { role: 'admin' }
+});
+
+// Get a single user
+const { data: user } = await firestoreProvider.getOne({
+  resource: 'users',
+  id: '123'
+});
+```
+
+### Advanced Features
+
+The Firebase provider supports advanced features like:
+
+- **Subcollections**: Work with nested collections
+- **Transactions**: Perform atomic operations
+- **Realtime Updates**: Subscribe to realtime updates
+
+```typescript
+// Get posts from a user's subcollection
+const { data } = await firestoreProvider.getList({
+  resource: 'users/123/posts'
+});
+
+// Use transactions
+await firestoreProvider.transaction(async (tx) => {
+  const user = await tx.getOne({ resource: 'users', id: '123' });
+  await tx.update({
+    resource: 'users',
+    id: '123',
+    data: { postCount: user.data.postCount + 1 }
+  });
+  await tx.create({
+    resource: 'posts',
+    data: { title: 'New Post', userId: '123' }
+  });
+});
+```
+
+## REST API Provider
+
+The REST API provider allows you to connect to a RESTful API.
+
+### Configuration
+
+```typescript
+import { providers } from '@repo/data';
+
+const restProvider = providers.rest.createProvider({
+  apiUrl: 'https://api.example.com',
+  headers: {
+    Authorization: `Bearer ${process.env.API_TOKEN}`
+  }
+});
+```
+
+### Usage
+
+```typescript
+// Get a list of users
+const { data, total } = await restProvider.getList({
+  resource: 'users',
+  pagination: { page: 1, perPage: 10 },
+  sort: { field: 'createdAt', order: 'desc' },
+  filter: { role: 'admin' }
+});
+
+// Get a single user
+const { data: user } = await restProvider.getOne({
+  resource: 'users',
+  id: '123'
+});
+```
+
+### Custom Endpoints
+
+The REST provider allows you to customize the endpoints for each operation:
+
+```typescript
+const customRestProvider = providers.rest.createProvider({
+  apiUrl: 'https://api.example.com',
+  resources: {
+    users: {
+      getList: '/users/search',
+      getOne: '/users/profile/:id',
+      create: '/users/register',
+      update: '/users/update/:id',
+      delete: '/users/remove/:id'
+    }
+  }
+});
+```
+
+### Request Transformation
+
+You can customize how requests are transformed:
+
+```typescript
+const transformedRestProvider = providers.rest.createProvider({
+  apiUrl: 'https://api.example.com',
+  requestTransforms: {
+    getList: (params) => ({
+      url: `/${params.resource}`,
+      method: 'GET',
+      params: {
+        page: params.pagination?.page,
+        limit: params.pagination?.perPage,
+        sort: params.sort ? `${params.sort.field}:${params.sort.order}` : undefined,
+        ...params.filter
+      }
+    })
+  }
+});
+```
+
+## GraphQL Provider
+
+The GraphQL provider allows you to connect to a GraphQL API.
+
+### Configuration
+
+```typescript
+import { providers } from '@repo/data';
+
+const graphqlProvider = providers.graphql.createProvider({
+  clientOptions: {
+    uri: 'https://api.example.com/graphql',
+    headers: {
+      Authorization: `Bearer ${process.env.API_TOKEN}`
+    }
+  }
+});
+```
+
+### Usage
+
+```typescript
+// Get a list of users
+const { data, total } = await graphqlProvider.getList({
+  resource: 'users',
+  pagination: { page: 1, perPage: 10 },
+  sort: { field: 'createdAt', order: 'desc' },
+  filter: { role: 'admin' }
+});
+
+// Get a single user
+const { data: user } = await graphqlProvider.getOne({
+  resource: 'users',
+  id: '123'
+});
+```
+
+### Custom Queries
+
+The GraphQL provider allows you to customize the queries for each operation:
+
+```typescript
+const customGraphqlProvider = providers.graphql.createProvider({
+  clientOptions: {
+    uri: 'https://api.example.com/graphql'
+  },
+  queries: {
+    users: {
+      getList: `
+        query GetUsers($page: Int, $perPage: Int, $sort: String, $filter: UserFilter) {
+          users(page: $page, perPage: $perPage, sort: $sort, filter: $filter) {
+            data {
+              id
+              name
+              email
+              role
+            }
+            total
+          }
+        }
+      `,
+      getOne: `
+        query GetUser($id: ID!) {
+          user(id: $id) {
+            id
+            name
+            email
+            role
+          }
+        }
+      `
+    }
+  }
+});
+```
+
+## Mock Provider
+
+The Mock provider is useful for testing and development.
+
+### Configuration
+
+```typescript
+import { providers } from '@repo/data';
+
+const mockProvider = providers.mock.createProvider({
+  data: {
+    users: [
+      { id: '1', name: 'John Doe', email: 'john@example.com', role: 'admin' },
+      { id: '2', name: 'Jane Smith', email: 'jane@example.com', role: 'user' }
+    ],
+    posts: [
+      { id: '1', title: 'First Post', content: 'Hello World', userId: '1' },
+      { id: '2', title: 'Second Post', content: 'Another post', userId: '2' }
+    ]
+  },
+  // Optional: simulate network delay
+  delay: 500
+});
+```
+
+### Usage
+
+```typescript
+// Get a list of users
+const { data, total } = await mockProvider.getList({
+  resource: 'users',
+  pagination: { page: 1, perPage: 10 },
+  sort: { field: 'name', order: 'asc' },
+  filter: { role: 'admin' }
+});
+
+// Get a single user
+const { data: user } = await mockProvider.getOne({
+  resource: 'users',
+  id: '1'
+});
+```
+
+### Customizing Behavior
+
+You can customize the behavior of the mock provider:
+
+```typescript
+const customMockProvider = providers.mock.createProvider({
+  data: {
+    users: [/* ... */]
+  },
+  handlers: {
+    getList: async (params, data) => {
+      console.log('Getting list', params);
+      
+      // Custom filtering
+      let filteredData = data[params.resource] || [];
+      if (params.filter) {
+        filteredData = filteredData.filter(item => {
+          return Object.entries(params.filter).every(([key, value]) => {
+            return item[key] === value;
+          });
+        });
+      }
+      
+      // Custom sorting
+      if (params.sort) {
+        filteredData.sort((a, b) => {
+          const aValue = a[params.sort.field];
+          const bValue = b[params.sort.field];
+          return params.sort.order === 'asc' 
+            ? aValue.localeCompare(bValue) 
+            : bValue.localeCompare(aValue);
+        });
+      }
+      
+      // Custom pagination
+      const page = params.pagination?.page || 1;
+      const perPage = params.pagination?.perPage || 10;
+      const start = (page - 1) * perPage;
+      const end = start + perPage;
+      const paginatedData = filteredData.slice(start, end);
+      
+      return {
+        data: paginatedData,
+        total: filteredData.length
+      };
+    }
+  }
+});
+```
+
+## Creating Custom Providers
+
+You can create custom providers by implementing the CrudProvider interface:
+
+```typescript
+import { base } from '@repo/data';
+
+// Create a custom provider
+const customProvider = base.createDataProvider({
+  type: 'custom',
+  implementation: {
+    getList: async (params) => {
+      // Custom implementation
+      return { data: [], total: 0 };
+    },
+    getOne: async (params) => {
+      // Custom implementation
+      return { data: {} };
+    },
+    create: async (params) => {
+      // Custom implementation
+      return { data: {} };
+    },
+    update: async (params) => {
+      // Custom implementation
+      return { data: {} };
+    },
+    delete: async (params) => {
+      // Custom implementation
+      return { data: {} };
+    }
+  }
+});
+
+// Register the custom provider
+base.registerProvider('custom', {
+  createProvider: (config) => {
+    // Create and return a provider instance
+    return customProvider;
+  }
+});
+```
+
+## Provider Composition
+
+You can compose multiple providers together to add cross-cutting concerns:
+
+```typescript
+import { base } from '@repo/data';
+
+// Create a logging provider wrapper
+const withLogging = (provider) => {
+  return {
+    getList: async (params) => {
+      console.log('Getting list', params);
+      const result = await provider.getList(params);
+      console.log('Got list', result);
+      return result;
+    },
+    getOne: async (params) => {
+      console.log('Getting one', params);
+      const result = await provider.getOne(params);
+      console.log('Got one', result);
+      return result;
+    },
+    create: async (params) => {
+      console.log('Creating', params);
+      const result = await provider.create(params);
+      console.log('Created', result);
+      return result;
+    },
+    update: async (params) => {
+      console.log('Updating', params);
+      const result = await provider.update(params);
+      console.log('Updated', result);
+      return result;
+    },
+    delete: async (params) => {
+      console.log('Deleting', params);
+      const result = await provider.delete(params);
+      console.log('Deleted', result);
+      return result;
+    }
+  };
+};
+
+// Create a caching provider wrapper
+const withCaching = (provider) => {
+  const cache = new Map();
+  
+  return {
+    getList: async (params) => {
+      const cacheKey = `getList:${params.resource}:${JSON.stringify(params)}`;
+      if (cache.has(cacheKey)) {
+        return cache.get(cacheKey);
+      }
+      
+      const result = await provider.getList(params);
+      cache.set(cacheKey, result);
+      return result;
+    },
+    getOne: async (params) => {
+      const cacheKey = `getOne:${params.resource}:${params.id}`;
+      if (cache.has(cacheKey)) {
+        return cache.get(cacheKey);
+      }
+      
+      const result = await provider.getOne(params);
+      cache.set(cacheKey, result);
+      return result;
+    },
+    create: async (params) => {
+      const result = await provider.create(params);
+      // Invalidate cache for this resource
+      invalidateCache(params.resource);
+      return result;
+    },
+    update: async (params) => {
+      const result = await provider.update(params);
+      // Invalidate cache for this resource
+      invalidateCache(params.resource);
+      return result;
+    },
+    delete: async (params) => {
+      const result = await provider.delete(params);
+      // Invalidate cache for this resource
+      invalidateCache(params.resource);
+      return result;
+    }
+  };
+  
+  function invalidateCache(resource) {
+    for (const key of cache.keys()) {
+      if (key.includes(`:${resource}:`)) {
+        cache.delete(key);
+      }
+    }
+  }
+};
+
+// Compose providers
+const baseProvider = providers.supabase.createProvider({
+  url: process.env.SUPABASE_URL,
+  key: process.env.SUPABASE_KEY
+});
+
+const enhancedProvider = withCaching(withLogging(baseProvider));
+```
+
+## API Reference
+
+For a complete API reference, please refer to the TypeScript definitions in the package.

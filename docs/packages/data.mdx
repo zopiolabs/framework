@@ -1,0 +1,169 @@
+---
+title: 'Overview'
+description: 'Core data management and provider packages for the Zopio framework'
+icon: 'table'
+---
+
+# Data Layer
+
+The `@repo/data` package provides a comprehensive solution for data operations with a standardized interface across different data sources. It serves as the foundation for all data-related functionality in the Zopio framework.
+
+## Features
+
+- **Unified Interface**: Consistent API across all data sources
+- **Multiple Providers**: Support for Supabase, Firebase, REST, GraphQL, and more
+- **Type Safety**: Full TypeScript support with comprehensive type definitions
+- **React Integration**: Hooks and components for seamless React integration
+- **Schema Validation**: Built-in schema definition and validation
+- **Extensibility**: Plugin architecture for custom functionality
+- **Optimized Performance**: Efficient data fetching and caching strategies
+
+## Installation
+
+This package is part of the Zopio monorepo and is available to all applications in the workspace.
+
+```bash
+# If you're adding it to a new package in the monorepo
+pnpm add @repo/data
+```
+
+## Package Structure
+
+The data package is organized into three main subpackages:
+
+- **Base**: Core types, utilities, and base interfaces
+- **Providers**: Data providers that implement the CrudProvider interface
+- **UI**: React components and hooks for working with data
+
+## Basic Usage
+
+### Creating a Data Provider
+
+```typescript
+import { base, providers } from '@repo/data';
+
+// Create a Supabase provider
+const dataProvider = base.createDataProvider({
+  type: 'supabase',
+  config: {
+    url: process.env.SUPABASE_URL,
+    key: process.env.SUPABASE_KEY,
+  }
+});
+
+// Or use the provider-specific factory
+const supabaseProvider = providers.supabase.createProvider({
+  url: process.env.SUPABASE_URL,
+  key: process.env.SUPABASE_KEY
+});
+```
+
+### Performing CRUD Operations
+
+```typescript
+// Get a list of resources
+const { data, total } = await dataProvider.getList({
+  resource: 'users',
+  pagination: { page: 1, perPage: 10 },
+  sort: { field: 'createdAt', order: 'desc' },
+  filter: { role: 'admin' }
+});
+
+// Get a single resource
+const { data: user } = await dataProvider.getOne({
+  resource: 'users',
+  id: '123'
+});
+
+// Create a resource
+const { data: newUser } = await dataProvider.create({
+  resource: 'users',
+  data: { name: 'John Doe', email: 'john@example.com' }
+});
+
+// Update a resource
+const { data: updatedUser } = await dataProvider.update({
+  resource: 'users',
+  id: '123',
+  data: { name: 'John Smith' }
+});
+
+// Delete a resource
+const { data: deletedUser } = await dataProvider.delete({
+  resource: 'users',
+  id: '123'
+});
+```
+
+### Using React Hooks
+
+```tsx
+import { ui } from '@repo/data';
+
+function UserList() {
+  // Fetch a list of users
+  const { data, loading, error } = ui.useGetList('users', {
+    pagination: { page: 1, perPage: 10 },
+    sort: { field: 'createdAt', order: 'desc' }
+  });
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+
+  return (
+    <ul>
+      {data.map(user => (
+        <li key={user.id}>{user.name}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+### Using UI Components
+
+```tsx
+import { ui } from '@repo/data';
+
+function UserManagement() {
+  return (
+    <ui.DataProvider>
+      <ui.DataList
+        resource="users"
+        columns={[
+          { field: 'id', headerName: 'ID' },
+          { field: 'name', headerName: 'Name' },
+          { field: 'email', headerName: 'Email' }
+        ]}
+        pagination
+        sorting
+        filtering
+      />
+    </ui.DataProvider>
+  );
+}
+```
+
+## Detailed Documentation
+
+For more detailed information on using the data package, see the following pages:
+
+- [Base Package](/packages/data/base) - Core types, interfaces, and utilities
+- [Provider System](/packages/data/providers) - Available data providers and how to use them
+- [UI Components](/packages/data/ui) - React components and hooks
+- [Schema System](/packages/data/schema) - Schema definition and validation
+- [Advanced Usage](/packages/data/advanced) - Advanced techniques and patterns
+
+## Environment Variables
+
+Depending on the provider you're using, you may need to set specific environment variables:
+
+| Provider | Variables | Description |
+| --- | --- | --- |
+| Supabase | `SUPABASE_URL`, `SUPABASE_KEY` | Supabase project URL and API key |
+| Firebase | `FIREBASE_API_KEY`, `FIREBASE_PROJECT_ID` | Firebase API key and project ID |
+| GraphQL | `GRAPHQL_ENDPOINT` | GraphQL API endpoint |
+
+## API Reference
+
+For a complete API reference, please refer to the TypeScript definitions in the package or explore the detailed documentation pages.
