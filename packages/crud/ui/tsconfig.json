@@ -1,4 +1,14 @@
 {
   "extends": "../../../packages/typescript-config/base.json",
-  "include": ["./"]
+  "compilerOptions": {
+    "jsx": "react",
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "module": "ESNext",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "strict": true
+  },
+  "include": ["./"],
+  "exclude": ["node_modules"]
 }
