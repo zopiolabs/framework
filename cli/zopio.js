@@ -6,6 +6,12 @@ import { generateCommand } from "./commands/generate.js";
 import { i18nCommand } from "./commands/i18n.js";
 import { configCommand } from "./commands/config.js";
 import { jobsCommand } from "./commands/jobs.js";
+import { crudCommand } from "./commands/crud.js";
+import { crudSchemaCommand } from "./commands/crud-schema.js";
+import { dataProviderCommand } from "./commands/data-provider.js";
+import { crudUiCommand } from "./commands/crud-ui.js";
+import { crudPermissionsCommand } from "./commands/crud-permissions.js";
+import { unifiedCrudCommand } from "./commands/crud-unified.js";
 import { logger, isZopioProject } from "./utils/helpers.js";
 import { pluginManager } from "./utils/plugins.js";
 
@@ -75,6 +81,20 @@ program.addCommand(generateCommand);
 program.addCommand(i18nCommand);
 program.addCommand(configCommand);
 program.addCommand(jobsCommand);
+// Add the unified CRUD command instead of individual CRUD commands
+program.addCommand(unifiedCrudCommand);
+// Keep individual commands for backward compatibility
+// but hide them from the help output
+crudCommand.hidden = true;
+crudSchemaCommand.hidden = true;
+dataProviderCommand.hidden = true;
+crudUiCommand.hidden = true;
+crudPermissionsCommand.hidden = true;
+program.addCommand(crudCommand);
+program.addCommand(crudSchemaCommand);
+program.addCommand(dataProviderCommand);
+program.addCommand(crudUiCommand);
+program.addCommand(crudPermissionsCommand);
 
 // Add plugin command to manage plugins
 program

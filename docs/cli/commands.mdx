@@ -38,12 +38,12 @@ The init command creates a new Zopio project with the following structure:
 Generate a new Zopio module.
 
 ```bash
-zopio generate <type> <name> [options]
+zopio generate <type> <n> [options]
 ```
 
 **Arguments:**
 - `type` - Type of module to generate (core | addon | data | i18n)
-- `name` - Name of the module
+- `n` - Name of the module
 
 **Options:**
 - `-d, --directory <directory>` - Custom directory for the module
@@ -62,11 +62,11 @@ zopio generate core authentication
 Generate a new React component with optional internationalization support.
 
 ```bash
-zopio component <name> [options]
+zopio component <n> [options]
 ```
 
 **Arguments:**
-- `name` - Component name
+- `n` - Component name
 
 **Options:**
 - `-i, --i18n` - Add internationalization support
@@ -133,7 +133,7 @@ zopio jobs [options]
 
 **Options:**
 - `-l, --list` - List all registered jobs
-- `-c, --create <name>` - Create a new job
+- `-c, --create <n>` - Create a new job
 - `-t, --trigger <jobId>` - Manually trigger a job
 - `-s, --schedule <cron>` - Set job schedule (cron expression)
 
@@ -154,11 +154,178 @@ zopio plugins [options]
 
 **Options:**
 - `-l, --list` - List all installed plugins
-- `-i, --install <name>` - Install a plugin
+- `-i, --install <n>` - Install a plugin
 
 **Example:**
 ```bash
 zopio plugins --list
+```
+
+## CRUD Commands
+
+### crud
+
+Unified CRUD operations toolkit for generating resources, schemas, UI components, data providers, permissions, tests, and validation.
+
+```bash
+zopio crud <subcommand> [options]
+```
+
+#### crud resource
+
+Generate CRUD resources with internationalization support.
+
+```bash
+zopio crud resource <n> [options]
+```
+
+**Arguments:**
+- `n` - Resource name (singular, e.g., 'user', 'product')
+
+**Options:**
+- `-f, --fields <fields>` - Comma-separated list of fields with types (e.g., 'name:string,age:number')
+- `-p, --path <path>` - Custom path for the resource (default: "resources")
+- `-i, --i18n` - Add internationalization support (default: true)
+- `--no-ui` - Skip UI component generation
+
+**Example:**
+```bash
+zopio crud resource user --fields "name:string,email:string,age:number"
+```
+
+#### crud schema
+
+Generate CRUD resources from a schema file.
+
+```bash
+zopio crud schema <schema> [options]
+```
+
+**Arguments:**
+- `schema` - Path to schema file or 'sample' to generate a sample schema
+
+**Options:**
+- `-o, --output <path>` - Output directory for generated resources (default: "resources")
+- `-i, --i18n` - Add internationalization support (default: true)
+- `--no-ui` - Skip UI component generation
+
+**Example:**
+```bash
+zopio crud schema schemas/product.json
+```
+
+#### crud ui
+
+Generate CRUD UI templates for resources.
+
+```bash
+zopio crud ui [options]
+```
+
+**Options:**
+- `-l, --list` - List available UI templates
+- `-t, --template <n>` - Template to generate
+- `-r, --resource <n>` - Resource name
+- `-a, --all` - Generate all templates for a resource
+- `-o, --output <path>` - Output directory (default: "components")
+- `-i, --i18n` - Add internationalization support (default: true)
+- `--typescript` - Generate TypeScript components
+
+**Example:**
+```bash
+zopio crud ui --template table --resource user
+```
+
+#### crud provider
+
+Manage data providers for CRUD operations.
+
+```bash
+zopio crud provider [options]
+```
+
+**Options:**
+- `-l, --list` - List all configured data providers
+- `-t, --types` - List available data provider types
+- `-a, --add <n>` - Add a new data provider configuration
+- `-p, --provider <type>` - Provider type (rest, graphql, firebase, etc.)
+- `-o, --options <options>` - Provider options as comma-separated key=value pairs
+- `-u, --update-registry` - Update the provider registry
+- `-g, --generate <resource>` - Generate a CRUD resource using a specific provider
+- `--provider-name <n>` - Provider name to use with generate
+- `--path <path>` - Path for generated resources (default: "resources")
+
+**Example:**
+```bash
+zopio crud provider --add api --provider rest
+```
+
+#### crud permissions
+
+Manage permissions for CRUD operations.
+
+```bash
+zopio crud permissions [options]
+```
+
+**Options:**
+- `-i, --init` - Initialize permissions system
+- `-lr, --list-resources` - List resources with operations
+- `-lo, --list-roles` - List roles with permissions
+- `-ar, --add-resource <n>` - Add a resource
+- `-ao, --add-operations <operations>` - Operations to add (comma-separated)
+- `-rl, --add-role <n>` - Add a role
+- `-rd, --role-description <description>` - Role description
+- `-g, --grant` - Grant permissions to a role
+- `-r, --revoke` - Revoke permissions from a role
+- `-rn, --role-name <n>` - Role name for grant/revoke
+- `-rs, --resource-name <n>` - Resource name for grant/revoke
+- `-o, --operations <operations>` - Operations for grant/revoke (comma-separated)
+- `-gp, --generate <resource>` - Generate permissions for a resource
+
+**Example:**
+```bash
+zopio crud permissions --generate user
+```
+
+#### crud testing
+
+Generate tests for CRUD resources.
+
+```bash
+zopio crud testing [options]
+```
+
+**Options:**
+- `-r, --resource <n>` - Resource name
+- `-t, --types <types>` - Test types to generate (unit,integration,e2e) (default: "unit,integration")
+- `-o, --output <path>` - Output directory (default: "tests")
+- `-f, --framework <framework>` - Test framework to use
+- `-l, --list` - List available test types
+
+**Example:**
+```bash
+zopio crud testing --resource user --types "unit,integration,e2e"
+```
+
+#### crud validation
+
+Generate validation schemas for CRUD resources.
+
+```bash
+zopio crud validation [options]
+```
+
+**Options:**
+- `-r, --resource <n>` - Resource name
+- `-l, --library <library>` - Validation library (zod, yup, joi, ajv) (default: "zod")
+- `-a, --all` - Generate schemas for all supported libraries
+- `-o, --output <path>` - Output directory (default: "validations")
+- `-ls, --list` - List available validation libraries
+
+**Example:**
+```bash
+zopio crud validation --resource user --library zod
 ```
 
 ## Plugin Commands
