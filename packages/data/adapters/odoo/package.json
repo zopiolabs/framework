@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Odoo adapter for Zopio framework",
   "main": "index.ts",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "type": "module",
   "sideEffects": false,
   "peerDependencies": {
