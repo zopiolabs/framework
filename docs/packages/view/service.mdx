@@ -1,0 +1,360 @@
+---
+title: 'Service'
+description: 'Storage and persistence for view schemas'
+icon: 'database'
+---
+
+# View Service
+
+The View Service provides storage and persistence capabilities for view schemas, allowing you to save, retrieve, and manage view definitions.
+
+## Overview
+
+The View Service offers the following functionality:
+
+- Initialization with different storage providers
+- Saving and retrieving view schemas
+- Listing available view schemas
+- Deleting view schemas
+- Support for both client and server-side storage
+
+## API Reference
+
+### `initViewService`
+
+Initializes the view service with the specified storage options.
+
+```typescript
+function initViewService(options: ViewServiceOptions): void;
+
+interface ViewServiceOptions {
+  /** Type of storage provider to use */
+  type: 'local' | 'session' | 'server' | 'custom';
+  /** Prefix for storage keys (for local and session storage) */
+  storagePrefix?: string;
+  /** Base URL for server storage */
+  serverUrl?: string;
+  /** Custom storage provider implementation */
+  customProvider?: StorageProvider;
+}
+
+interface StorageProvider {
+  get: (key: string) => Promise<any>;
+  set: (key: string, value: any) => Promise<void>;
+  list: () => Promise<Record<string, any>>;
+  delete: (key: string) => Promise<void>;
+}
+```
+
+### `saveView`
+
+Saves a view schema to the storage provider.
+
+```typescript
+function saveView(id: string, schema: ViewSchema): Promise<void>;
+```
+
+### `getView`
+
+Retrieves a view schema from the storage provider.
+
+```typescript
+function getView(id: string): Promise<ViewSchema | null>;
+```
+
+### `listViews`
+
+Lists all available view schemas from the storage provider.
+
+```typescript
+function listViews(): Promise<Record<string, ViewSchema>>;
+```
+
+### `deleteView`
+
+Deletes a view schema from the storage provider.
+
+```typescript
+function deleteView(id: string): Promise<void>;
+```
+
+### `exportViews`
+
+Exports all view schemas as a JSON string.
+
+```typescript
+function exportViews(): Promise<string>;
+```
+
+### `importViews`
+
+Imports view schemas from a JSON string.
+
+```typescript
+function importViews(json: string, overwrite?: boolean): Promise<void>;
+```
+
+## Storage Providers
+
+The View Service supports the following storage providers:
+
+### Local Storage Provider
+
+Stores view schemas in the browser's localStorage.
+
+```typescript
+initViewService({
+  type: 'local',
+  storagePrefix: 'my-app'
+});
+```
+
+### Session Storage Provider
+
+Stores view schemas in the browser's sessionStorage.
+
+```typescript
+initViewService({
+  type: 'session',
+  storagePrefix: 'my-app'
+});
+```
+
+### Server Storage Provider
+
+Stores view schemas on a server using REST API calls.
+
+```typescript
+initViewService({
+  type: 'server',
+  serverUrl: 'https://api.example.com/views'
+});
+```
+
+### Custom Storage Provider
+
+Allows you to implement your own storage provider.
+
+```typescript
+initViewService({
+  type: 'custom',
+  customProvider: {
+    get: async (key) => {
+      // Custom implementation
+    },
+    set: async (key, value) => {
+      // Custom implementation
+    },
+    list: async () => {
+      // Custom implementation
+    },
+    delete: async (key) => {
+      // Custom implementation
+    }
+  }
+});
+```
+
+## Examples
+
+### Initializing the View Service
+
+```typescript
+import { initViewService } from '@repo/view';
+
+// Initialize with local storage
+initViewService({
+  type: 'local',
+  storagePrefix: 'my-app'
+});
+
+// Initialize with server storage
+initViewService({
+  type: 'server',
+  serverUrl: '/api/views'
+});
+```
+
+### Saving and Retrieving Views
+
+```typescript
+import { saveView, getView } from '@repo/view';
+
+// Define a view schema
+const formSchema = {
+  id: 'user-form',
+  type: 'form',
+  schema: 'user',
+  fields: [
+    {
+      name: 'name',
+      label: 'Name',
+      type: 'string',
+      required: true
+    },
+    {
+      name: 'email',
+      label: 'Email',
+      type: 'string',
+      required: true
+    }
+  ]
+};
+
+// Save the view schema
+await saveView('user-form', formSchema);
+
+// Retrieve the view schema
+const retrievedSchema = await getView('user-form');
+console.log(retrievedSchema);
+```
+
+### Listing and Deleting Views
+
+```typescript
+import { listViews, deleteView } from '@repo/view';
+
+// List all available views
+const views = await listViews();
+console.log('Available views:', Object.keys(views));
+
+// Delete a view
+await deleteView('user-form');
+```
+
+### Exporting and Importing Views
+
+```typescript
+import { exportViews, importViews } from '@repo/view';
+
+// Export all views
+const json = await exportViews();
+console.log('Exported views:', json);
+
+// Import views
+await importViews(json, true); // Overwrite existing views
+```
+
+## Integration with React
+
+The View Service can be integrated with React using hooks:
+
+```tsx
+import { useEffect, useState } from 'react';
+import { initViewService, listViews, saveView, deleteView } from '@repo/view';
+
+function ViewManager() {
+  const [views, setViews] = useState({});
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    // Initialize the view service
+    initViewService({
+      type: 'local',
+      storagePrefix: 'my-app'
+    });
+    
+    // Load views
+    loadViews();
+  }, []);
+  
+  const loadViews = async () => {
+    setLoading(true);
+    try {
+      const views = await listViews();
+      setViews(views);
+    } catch (error) {
+      console.error('Error loading views:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleSave = async (id, schema) => {
+    try {
+      await saveView(id, schema);
+      await loadViews();
+    } catch (error) {
+      console.error('Error saving view:', error);
+    }
+  };
+  
+  const handleDelete = async (id) => {
+    try {
+      await deleteView(id);
+      await loadViews();
+    } catch (error) {
+      console.error('Error deleting view:', error);
+    }
+  };
+  
+  if (loading) return <div>Loading views...</div>;
+  
+  return (
+    <div>
+      <h1>View Manager</h1>
+      <button onClick={loadViews}>Refresh</button>
+      <ul>
+        {Object.entries(views).map(([id, schema]) => (
+          <li key={id}>
+            {id}
+            <button onClick={() => handleDelete(id)}>Delete</button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+## Server-Side Implementation
+
+For server-side storage, you need to implement the following REST API endpoints:
+
+- `GET /api/views`: List all views
+- `GET /api/views/:id`: Get a specific view
+- `POST /api/views/:id`: Save a view
+- `DELETE /api/views/:id`: Delete a view
+
+Here's an example using Next.js API routes:
+
+```typescript
+// pages/api/views/index.js
+import { getViews } from '@/lib/views';
+
+export default async function handler(req, res) {
+  if (req.method === 'GET') {
+    const views = await getViews();
+    return res.status(200).json(views);
+  }
+  
+  return res.status(405).json({ message: 'Method not allowed' });
+}
+
+// pages/api/views/[id].js
+import { getView, saveView, deleteView } from '@/lib/views';
+
+export default async function handler(req, res) {
+  const { id } = req.query;
+  
+  if (req.method === 'GET') {
+    const view = await getView(id);
+    if (!view) {
+      return res.status(404).json({ message: 'View not found' });
+    }
+    return res.status(200).json(view);
+  }
+  
+  if (req.method === 'POST') {
+    await saveView(id, req.body);
+    return res.status(200).json({ message: 'View saved' });
+  }
+  
+  if (req.method === 'DELETE') {
+    await deleteView(id);
+    return res.status(200).json({ message: 'View deleted' });
+  }
+  
+  return res.status(405).json({ message: 'Method not allowed' });
+}
+```

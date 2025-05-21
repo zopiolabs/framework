@@ -1,0 +1,345 @@
+---
+title: 'Internationalization'
+description: 'Internationalization support for view components'
+icon: 'language'
+---
+
+# View Internationalization
+
+The View package includes comprehensive internationalization support, allowing you to create multilingual UI components.
+
+## Overview
+
+The View package's internationalization features include:
+
+- Integration with next-intl for translations
+- Support for multiple locales (English, Turkish, Spanish, German)
+- Translation files for all view components
+- Hooks for accessing translations in React components
+- Automatic locale detection and switching
+
+## Configuration
+
+The View package uses the same internationalization configuration as the rest of the framework:
+
+```typescript
+// Default configuration
+const i18nConfig = {
+  defaultLocale: 'en',
+  supportedLocales: ['en', 'tr', 'es', 'de']
+};
+```
+
+## Translation Files
+
+Translation files are stored in both the `dictionaries/` and `locales/` directories:
+
+```
+view/
+  ├── locales/
+  │   ├── en.json
+  │   ├── tr.json
+  │   ├── es.json
+  │   └── de.json
+```
+
+Each locale file contains translations for view components:
+
+```json
+// en.json
+{
+  "view": {
+    "common": {
+      "title": "View",
+      "description": "Schema-driven UI components",
+      "submit": "Submit",
+      "cancel": "Cancel",
+      "save": "Save",
+      "delete": "Delete",
+      "edit": "Edit",
+      "view": "View",
+      "search": "Search",
+      "filter": "Filter",
+      "sort": "Sort",
+      "page": "Page",
+      "of": "of",
+      "loading": "Loading...",
+      "error": "Error",
+      "noData": "No data available"
+    },
+    "form": {
+      "required": "This field is required",
+      "invalid": "This field is invalid",
+      "success": "Form submitted successfully",
+      "error": "An error occurred while submitting the form"
+    },
+    "table": {
+      "rowsPerPage": "Rows per page",
+      "of": "of",
+      "noResults": "No results found"
+    },
+    "detail": {
+      "notFound": "Record not found"
+    },
+    "import": {
+      "selectFile": "Select file",
+      "dragAndDrop": "or drag and drop",
+      "fileSelected": "File selected",
+      "startImport": "Start import",
+      "importing": "Importing...",
+      "success": "Import successful",
+      "error": "Import failed"
+    },
+    "export": {
+      "exportAs": "Export as",
+      "exporting": "Exporting...",
+      "success": "Export successful",
+      "error": "Export failed"
+    },
+    "auditLog": {
+      "user": "User",
+      "action": "Action",
+      "timestamp": "Timestamp",
+      "details": "Details",
+      "noLogs": "No audit logs found"
+    },
+    "designer": {
+      "addField": "Add field",
+      "editField": "Edit field",
+      "deleteField": "Delete field",
+      "fieldProperties": "Field properties",
+      "preview": "Preview",
+      "code": "Code",
+      "save": "Save schema",
+      "load": "Load schema",
+      "export": "Export schema",
+      "import": "Import schema"
+    }
+  }
+}
+```
+
+## API Reference
+
+### `useViewTranslations`
+
+Hook for accessing translations in React components.
+
+```typescript
+function useViewTranslations(namespace: string = 'view'): (key: string, params?: Record<string, unknown>) => string;
+```
+
+### `setViewLocale`
+
+Function for setting the current locale.
+
+```typescript
+function setViewLocale(locale: string): void;
+```
+
+### `getViewLocale`
+
+Function for getting the current locale.
+
+```typescript
+function getViewLocale(): string;
+```
+
+### `withViewTranslations`
+
+Higher-order component for providing translations to components.
+
+```typescript
+function withViewTranslations<P>(
+  Component: React.ComponentType<P & { t: (key: string, params?: Record<string, unknown>) => string }>,
+  namespace: string = 'view'
+): React.ComponentType<P>;
+```
+
+## Examples
+
+### Using `useViewTranslations` in a Component
+
+```tsx
+import { useViewTranslations } from '@repo/view';
+
+function MyComponent() {
+  const t = useViewTranslations();
+  
+  return (
+    <div>
+      <h1>{t('common.title')}</h1>
+      <p>{t('common.description')}</p>
+      <button>{t('common.submit')}</button>
+    </div>
+  );
+}
+```
+
+### Using Translations with Parameters
+
+```tsx
+import { useViewTranslations } from '@repo/view';
+
+function Pagination({ page, totalPages }) {
+  const t = useViewTranslations();
+  
+  return (
+    <div>
+      {t('table.pagination', { page, totalPages })}
+    </div>
+  );
+}
+```
+
+### Setting the Locale
+
+```tsx
+import { setViewLocale, getViewLocale } from '@repo/view';
+
+function LanguageSwitcher() {
+  const currentLocale = getViewLocale();
+  
+  const handleLocaleChange = (locale) => {
+    setViewLocale(locale);
+    window.location.reload();
+  };
+  
+  return (
+    <div>
+      <button onClick={() => handleLocaleChange('en')} disabled={currentLocale === 'en'}>
+        English
+      </button>
+      <button onClick={() => handleLocaleChange('tr')} disabled={currentLocale === 'tr'}>
+        Türkçe
+      </button>
+      <button onClick={() => handleLocaleChange('es')} disabled={currentLocale === 'es'}>
+        Español
+      </button>
+      <button onClick={() => handleLocaleChange('de')} disabled={currentLocale === 'de'}>
+        Deutsch
+      </button>
+    </div>
+  );
+}
+```
+
+### Using `withViewTranslations` HOC
+
+```tsx
+import { withViewTranslations } from '@repo/view';
+
+function MyComponent({ t }) {
+  return (
+    <div>
+      <h1>{t('common.title')}</h1>
+      <p>{t('common.description')}</p>
+      <button>{t('common.submit')}</button>
+    </div>
+  );
+}
+
+export default withViewTranslations(MyComponent);
+```
+
+## Integration with Next.js
+
+The View package integrates with Next.js internationalization using next-international and next-intl:
+
+```tsx
+// app/[locale]/layout.tsx
+import { NextIntlClientProvider } from 'next-intl';
+import { getMessages } from 'next-intl/server';
+
+export default async function LocaleLayout({
+  children,
+  params: { locale }
+}) {
+  const messages = await getMessages();
+  
+  return (
+    <NextIntlClientProvider locale={locale} messages={messages}>
+      {children}
+    </NextIntlClientProvider>
+  );
+}
+```
+
+## Adding New Translations
+
+To add translations for a new key:
+
+1. Add the key to all locale files (`en.json`, `tr.json`, `es.json`, `de.json`)
+2. Use the key in your components with `useViewTranslations`
+
+```tsx
+// Add to locale files
+// en.json
+{
+  "view": {
+    "myFeature": {
+      "title": "My Feature",
+      "description": "This is my new feature"
+    }
+  }
+}
+
+// Use in component
+import { useViewTranslations } from '@repo/view';
+
+function MyFeature() {
+  const t = useViewTranslations();
+  
+  return (
+    <div>
+      <h1>{t('myFeature.title')}</h1>
+      <p>{t('myFeature.description')}</p>
+    </div>
+  );
+}
+```
+
+## Adding Support for New Languages
+
+To add support for a new language:
+
+1. Create a new locale file in the `locales/` directory (e.g., `fr.json`)
+2. Add the locale to the supported locales in the configuration
+3. Translate all keys from the English locale file
+
+```json
+// fr.json
+{
+  "view": {
+    "common": {
+      "title": "Vue",
+      "description": "Composants d'interface utilisateur basés sur des schémas",
+      "submit": "Soumettre",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "delete": "Supprimer",
+      "edit": "Modifier",
+      "view": "Voir",
+      "search": "Rechercher",
+      "filter": "Filtrer",
+      "sort": "Trier",
+      "page": "Page",
+      "of": "sur",
+      "loading": "Chargement...",
+      "error": "Erreur",
+      "noData": "Aucune donnée disponible"
+    },
+    // ... translate all other keys
+  }
+}
+```
+
+Update the configuration to include the new locale:
+
+```typescript
+// i18nConfig.ts
+export const i18nConfig = {
+  defaultLocale: 'en',
+  supportedLocales: ['en', 'tr', 'es', 'de', 'fr']
+};
+```

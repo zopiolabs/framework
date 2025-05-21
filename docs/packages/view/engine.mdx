@@ -1,0 +1,310 @@
+---
+title: 'Engine'
+description: 'Core view rendering functionality'
+icon: 'gears'
+---
+
+# View Engine
+
+The View Engine is the core of the `@repo/view` package, responsible for rendering views based on schemas and handling interactions.
+
+## Overview
+
+The View Engine provides the following functionality:
+
+- Schema validation and normalization
+- View rendering based on schema type
+- Integration with CRUD components
+- Error handling and fallbacks
+- Internationalization support
+
+## API Reference
+
+### `createViewEngine`
+
+Creates a new instance of the View Engine with the specified options.
+
+```typescript
+function createViewEngine(options?: ViewEngineOptions): ViewEngine;
+
+interface ViewEngineOptions {
+  /** Default locale for internationalization */
+  defaultLocale?: string;
+  /** Supported locales for internationalization */
+  supportedLocales?: string[];
+  /** Storage provider for view schemas */
+  storageProvider?: StorageProvider;
+}
+```
+
+### `renderView`
+
+Renders a view based on the provided schema and options.
+
+```typescript
+function renderView(
+  schema: ViewSchema,
+  options?: ViewRenderOptions
+): React.ReactElement;
+
+interface ViewRenderOptions {
+  /** Callback when form is submitted */
+  onSubmit?: (data: Record<string, unknown>) => void | Promise<void>;
+  /** Callback when data is loaded */
+  onLoad?: (data: Record<string, unknown>) => void;
+  /** Callback when an error occurs */
+  onError?: (error: Error) => void;
+  /** Initial data for the view */
+  initialData?: Record<string, unknown>;
+  /** Whether to show loading state */
+  loading?: boolean;
+  /** Custom components to override defaults */
+  components?: Record<string, React.ComponentType<any>>;
+}
+```
+
+### `validateViewSchema`
+
+Validates a view schema and returns a validation result.
+
+```typescript
+function validateViewSchema(schema: unknown): ValidationResult<ViewSchema>;
+
+interface ValidationResult<T> {
+  success: boolean;
+  data?: T;
+  error?: ZodError;
+}
+```
+
+### `safeValidateViewSchema`
+
+Safely validates a view schema without throwing errors.
+
+```typescript
+function safeValidateViewSchema(schema: unknown): ValidationResult<ViewSchema>;
+```
+
+## Schema Types
+
+The View Engine supports the following schema types:
+
+### Form Schema
+
+```typescript
+interface FormViewSchema extends BaseViewSchema {
+  type: 'form';
+  fields: ViewField[];
+  layout?: 'vertical' | 'horizontal';
+  submitLabel?: string;
+  cancelLabel?: string;
+}
+```
+
+### Table Schema
+
+```typescript
+interface TableViewSchema extends BaseViewSchema {
+  type: 'table';
+  columns: ViewColumn[];
+  pagination?: boolean | PaginationOptions;
+  sorting?: boolean | SortingOptions;
+  filtering?: boolean | FilteringOptions;
+  actions?: ViewAction[];
+}
+```
+
+### Detail Schema
+
+```typescript
+interface DetailViewSchema extends BaseViewSchema {
+  type: 'detail';
+  sections: ViewSection[];
+  actions?: ViewAction[];
+}
+```
+
+### Audit Log Schema
+
+```typescript
+interface AuditLogViewSchema extends BaseViewSchema {
+  type: 'audit-log';
+  filters?: ViewFilter[];
+  dateRange?: boolean;
+  userFilter?: boolean;
+}
+```
+
+### Import Schema
+
+```typescript
+interface ImportViewSchema extends BaseViewSchema {
+  type: 'import';
+  mapping?: ViewMapping[];
+  validation?: ViewValidation[];
+}
+```
+
+### Export Schema
+
+```typescript
+interface ExportViewSchema extends BaseViewSchema {
+  type: 'export';
+  formats?: ('csv' | 'json' | 'excel')[];
+  filters?: ViewFilter[];
+}
+```
+
+## Integration with CRUD Components
+
+The View Engine integrates with CRUD components from the `@repo/crud` package:
+
+```typescript
+// Form view rendering
+function renderFormView(schema: FormViewSchema, options: ViewRenderOptions) {
+  return <AutoForm schema={schema.schema} {...options} />;
+}
+
+// Table view rendering
+function renderTableView(schema: TableViewSchema, options: ViewRenderOptions) {
+  return <AutoTable schema={schema.schema} {...options} />;
+}
+
+// Detail view rendering
+function renderDetailView(schema: DetailViewSchema, options: ViewRenderOptions) {
+  return <AutoDetail schema={schema.schema} {...options} />;
+}
+
+// Audit log view rendering
+function renderAuditLogView(schema: AuditLogViewSchema, options: ViewRenderOptions) {
+  return <AutoAuditLogView schema={schema.schema} {...options} />;
+}
+
+// Import view rendering
+function renderImportView(schema: ImportViewSchema, options: ViewRenderOptions) {
+  return <AutoImport schema={schema.schema} {...options} />;
+}
+
+// Export view rendering
+function renderExportView(schema: ExportViewSchema, options: ViewRenderOptions) {
+  return <AutoExport schema={schema.schema} {...options} />;
+}
+```
+
+## Error Handling
+
+The View Engine includes comprehensive error handling:
+
+```typescript
+function ViewErrorBoundary({ children, fallback }: ViewErrorBoundaryProps) {
+  return (
+    <ErrorBoundary
+      fallbackRender={({ error }) => (
+        fallback ? fallback(error) : <DefaultErrorFallback error={error} />
+      )}
+    >
+      {children}
+    </ErrorBoundary>
+  );
+}
+```
+
+## Internationalization
+
+The View Engine supports internationalization using next-intl:
+
+```typescript
+function useViewTranslations(namespace: string = 'view') {
+  return useTranslations(namespace);
+}
+```
+
+## Examples
+
+### Basic Form View
+
+```tsx
+import { renderView } from '@repo/view';
+
+const formSchema = {
+  id: 'user-form',
+  type: 'form',
+  schema: 'user',
+  fields: [
+    {
+      name: 'name',
+      label: 'Name',
+      type: 'string',
+      required: true
+    },
+    {
+      name: 'email',
+      label: 'Email',
+      type: 'string',
+      required: true
+    }
+  ]
+};
+
+function UserForm() {
+  return renderView(formSchema, {
+    onSubmit: async (data) => {
+      await createUser(data);
+    }
+  });
+}
+```
+
+### Table View with Pagination and Sorting
+
+```tsx
+import { renderView } from '@repo/view';
+
+const tableSchema = {
+  id: 'user-table',
+  type: 'table',
+  schema: 'user',
+  columns: [
+    { field: 'id', headerName: 'ID' },
+    { field: 'name', headerName: 'Name' },
+    { field: 'email', headerName: 'Email' },
+    { field: 'role', headerName: 'Role' }
+  ],
+  pagination: true,
+  sorting: true,
+  actions: ['view', 'edit', 'delete']
+};
+
+function UserTable() {
+  return renderView(tableSchema);
+}
+```
+
+### Detail View with Sections
+
+```tsx
+import { renderView } from '@repo/view';
+
+const detailSchema = {
+  id: 'user-detail',
+  type: 'detail',
+  schema: 'user',
+  sections: [
+    {
+      title: 'Basic Information',
+      fields: ['name', 'email', 'role']
+    },
+    {
+      title: 'Additional Information',
+      fields: ['createdAt', 'updatedAt', 'lastLogin']
+    }
+  ],
+  actions: ['edit', 'delete']
+};
+
+function UserDetail({ userId }) {
+  return renderView(detailSchema, {
+    initialData: { id: userId }
+  });
+}
+```

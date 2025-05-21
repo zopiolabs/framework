@@ -1,0 +1,12 @@
+{
+  "name": "@repo/view",
+  "version": "0.1.0",
+  "main": "index.ts",
+  "types": "index.ts",
+  "dependencies": {
+    "@repo/view-engine": "*",
+    "@repo/view-service": "*",
+    "@repo/view-designer": "*",
+    "@repo/view-hooks": "*"
+  }
+}

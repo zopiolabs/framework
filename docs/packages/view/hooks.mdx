@@ -1,0 +1,355 @@
+---
+title: 'Hooks'
+description: 'React hooks for view operations'
+icon: 'link'
+---
+
+# View Hooks
+
+The View package provides a set of React hooks for working with view schemas and rendering views.
+
+## Overview
+
+The View hooks offer the following functionality:
+
+- Fetching and managing view schemas
+- Rendering views with React
+- Handling view interactions
+- Internationalization support
+- Error handling
+
+## API Reference
+
+### `useViewSchema`
+
+Fetches a view schema by ID from the view service.
+
+```typescript
+function useViewSchema(id: string): {
+  data: ViewSchema | null;
+  loading: boolean;
+  error: Error | null;
+  refetch: () => Promise<void>;
+};
+```
+
+### `useViewSchemas`
+
+Fetches all available view schemas from the view service.
+
+```typescript
+function useViewSchemas(): {
+  data: Record<string, ViewSchema>;
+  loading: boolean;
+  error: Error | null;
+  refetch: () => Promise<void>;
+};
+```
+
+### `useViewRenderer`
+
+Provides a function for rendering views based on schemas.
+
+```typescript
+function useViewRenderer(): {
+  renderView: (schema: ViewSchema, options?: ViewRenderOptions) => React.ReactElement;
+};
+```
+
+### `useViewTranslations`
+
+Provides translations for view components.
+
+```typescript
+function useViewTranslations(namespace: string = 'view'): (key: string, params?: Record<string, unknown>) => string;
+```
+
+### `useViewErrors`
+
+Provides error handling for view components.
+
+```typescript
+function useViewErrors(): {
+  handleError: (error: Error) => void;
+  clearErrors: () => void;
+  errors: Error[];
+};
+```
+
+### `useViewForm`
+
+Provides form handling for view components.
+
+```typescript
+function useViewForm(schema: FormViewSchema, options?: ViewFormOptions): {
+  handleSubmit: (data: Record<string, unknown>) => Promise<void>;
+  handleReset: () => void;
+  isSubmitting: boolean;
+  errors: Record<string, string>;
+};
+
+interface ViewFormOptions {
+  onSubmit?: (data: Record<string, unknown>) => void | Promise<void>;
+  onReset?: () => void;
+  initialData?: Record<string, unknown>;
+  validationSchema?: ZodSchema;
+}
+```
+
+### `useViewTable`
+
+Provides table handling for view components.
+
+```typescript
+function useViewTable(schema: TableViewSchema, options?: ViewTableOptions): {
+  data: Record<string, unknown>[];
+  loading: boolean;
+  pagination: PaginationState;
+  sorting: SortingState;
+  filtering: FilteringState;
+  handlePageChange: (page: number) => void;
+  handleSortChange: (field: string, order: 'asc' | 'desc') => void;
+  handleFilterChange: (filters: Record<string, unknown>) => void;
+};
+
+interface ViewTableOptions {
+  initialPagination?: PaginationState;
+  initialSorting?: SortingState;
+  initialFiltering?: FilteringState;
+  fetchData?: (params: FetchDataParams) => Promise<{ data: Record<string, unknown>[]; total: number }>;
+}
+```
+
+### `useViewDetail`
+
+Provides detail handling for view components.
+
+```typescript
+function useViewDetail(schema: DetailViewSchema, options?: ViewDetailOptions): {
+  data: Record<string, unknown> | null;
+  loading: boolean;
+  error: Error | null;
+  refetch: () => Promise<void>;
+};
+
+interface ViewDetailOptions {
+  id?: string | number;
+  fetchData?: (id: string | number) => Promise<Record<string, unknown>>;
+}
+```
+
+## Examples
+
+### Using `useViewSchema`
+
+```tsx
+import { useViewSchema } from '@repo/view';
+
+function MyComponent({ schemaId }) {
+  const { data: schema, loading, error } = useViewSchema(schemaId);
+  
+  if (loading) return <div>Loading schema...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+  if (!schema) return <div>No schema found</div>;
+  
+  return (
+    <div>
+      <h1>{schema.id}</h1>
+      <pre>{JSON.stringify(schema, null, 2)}</pre>
+    </div>
+  );
+}
+```
+
+### Using `useViewRenderer`
+
+```tsx
+import { useViewRenderer, useViewSchema } from '@repo/view';
+
+function MyComponent({ schemaId }) {
+  const { data: schema, loading, error } = useViewSchema(schemaId);
+  const { renderView } = useViewRenderer();
+  
+  if (loading) return <div>Loading schema...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+  if (!schema) return <div>No schema found</div>;
+  
+  return renderView(schema, {
+    onSubmit: async (data) => {
+      console.log('Form submitted:', data);
+    }
+  });
+}
+```
+
+### Using `useViewTranslations`
+
+```tsx
+import { useViewTranslations } from '@repo/view';
+
+function MyComponent() {
+  const t = useViewTranslations();
+  
+  return (
+    <div>
+      <h1>{t('common.title')}</h1>
+      <p>{t('common.description')}</p>
+      <button>{t('common.submit')}</button>
+    </div>
+  );
+}
+```
+
+### Using `useViewForm`
+
+```tsx
+import { useViewForm } from '@repo/view';
+
+function MyForm({ schema }) {
+  const { handleSubmit, handleReset, isSubmitting, errors } = useViewForm(schema, {
+    onSubmit: async (data) => {
+      await createUser(data);
+    },
+    initialData: {
+      name: '',
+      email: '',
+      role: 'user'
+    }
+  });
+  
+  return (
+    <form onSubmit={handleSubmit} onReset={handleReset}>
+      {/* Form fields */}
+      <div>
+        <button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Submitting...' : 'Submit'}
+        </button>
+        <button type="reset">Reset</button>
+      </div>
+      {Object.entries(errors).map(([field, error]) => (
+        <div key={field} style={{ color: 'red' }}>
+          {error}
+        </div>
+      ))}
+    </form>
+  );
+}
+```
+
+### Using `useViewTable`
+
+```tsx
+import { useViewTable } from '@repo/view';
+
+function MyTable({ schema }) {
+  const {
+    data,
+    loading,
+    pagination,
+    sorting,
+    filtering,
+    handlePageChange,
+    handleSortChange,
+    handleFilterChange
+  } = useViewTable(schema, {
+    initialPagination: { page: 1, perPage: 10 },
+    initialSorting: { field: 'createdAt', order: 'desc' },
+    initialFiltering: { role: 'admin' }
+  });
+  
+  if (loading) return <div>Loading data...</div>;
+  
+  return (
+    <div>
+      {/* Filtering controls */}
+      <div>
+        <input
+          type="text"
+          placeholder="Search by name"
+          onChange={(e) => handleFilterChange({ ...filtering, name: e.target.value })}
+        />
+      </div>
+      
+      {/* Table */}
+      <table>
+        <thead>
+          <tr>
+            {schema.columns.map((column) => (
+              <th
+                key={column.field}
+                onClick={() => handleSortChange(
+                  column.field,
+                  sorting.field === column.field && sorting.order === 'asc' ? 'desc' : 'asc'
+                )}
+              >
+                {column.headerName}
+                {sorting.field === column.field && (
+                  sorting.order === 'asc' ? ' ↑' : ' ↓'
+                )}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row) => (
+            <tr key={row.id}>
+              {schema.columns.map((column) => (
+                <td key={column.field}>{row[column.field]}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      
+      {/* Pagination controls */}
+      <div>
+        <button
+          disabled={pagination.page === 1}
+          onClick={() => handlePageChange(pagination.page - 1)}
+        >
+          Previous
+        </button>
+        <span>Page {pagination.page}</span>
+        <button
+          onClick={() => handlePageChange(pagination.page + 1)}
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+### Using `useViewDetail`
+
+```tsx
+import { useViewDetail } from '@repo/view';
+
+function MyDetail({ schema, id }) {
+  const { data, loading, error, refetch } = useViewDetail(schema, { id });
+  
+  if (loading) return <div>Loading data...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+  if (!data) return <div>No data found</div>;
+  
+  return (
+    <div>
+      <button onClick={refetch}>Refresh</button>
+      {schema.sections.map((section) => (
+        <div key={section.title}>
+          <h2>{section.title}</h2>
+          <dl>
+            {section.fields.map((field) => (
+              <div key={field}>
+                <dt>{field}</dt>
+                <dd>{data[field]}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ))}
+    </div>
+  );
+}
+```

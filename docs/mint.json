@@ -212,6 +212,18 @@
         "packages/testing",
         "packages/toolbar",
         {
+          "group": "View System",
+          "icon": "eye",
+          "pages": [
+            "packages/view",
+            "packages/view/engine",
+            "packages/view/designer",
+            "packages/view/hooks",
+            "packages/view/service",
+            "packages/view/i18n"
+          ]
+        },
+        {
           "group": "Trigger",
           "icon": "bolt",
           "pages": [
