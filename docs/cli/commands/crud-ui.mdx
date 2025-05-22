@@ -1,0 +1,77 @@
+---
+title: "crud-ui"
+description: "Generate React components for CRUD operations"
+---
+
+# CRUD UI Command
+
+The `crud-ui` command generates React components for CRUD (Create, Read, Update, Delete) operations in your Zopio project. This command creates reusable UI components that connect to your backend API.
+
+## Usage
+
+```bash
+zopio crud-ui [options]
+```
+
+## Options
+
+| Option | Description |
+| ------ | ----------- |
+| `-m, --model <name>` | Model name |
+| `-f, --fields <fields>` | Fields in format "name:type:label,age:number:Age" |
+| `-o, --output <directory>` | Output directory for UI components |
+| `-t, --theme <theme>` | UI theme (bootstrap, material) (default: "bootstrap") |
+| `-h, --help` | Display help for command |
+
+## Examples
+
+### Generate UI components for a User model
+
+```bash
+zopio crud-ui --model User --fields "name:string:Full Name,email:string:Email Address,age:number:Age,isActive:boolean:Active Status"
+```
+
+### Generate UI components with Material UI theme
+
+```bash
+zopio crud-ui --model Product --fields "name:string:Product Name,price:number:Price,description:string:Description,inStock:boolean:In Stock" --theme material
+```
+
+## Generated Components
+
+When you run the `crud-ui` command, the following React components will be generated:
+
+1. **List Component**: Displays a table of all records with sorting and pagination
+2. **Form Component**: Provides a form for creating and editing records
+3. **Detail Component**: Shows detailed information for a single record
+4. **Service**: Contains API calls for CRUD operations
+
+### Example Component Structure
+
+```
+components/
+└── user/
+    ├── UserList.jsx
+    ├── UserForm.jsx
+    ├── UserDetail.jsx
+    └── user.service.js
+```
+
+### Example Usage in React Router
+
+```jsx
+import { UserList } from './components/user/UserList';
+import { UserForm } from './components/user/UserForm';
+import { UserDetail } from './components/user/UserDetail';
+
+<Route path="/user" element={<UserList />} />
+<Route path="/user/create" element={<UserForm />} />
+<Route path="/user/edit/:id" element={<UserForm />} />
+<Route path="/user/:id" element={<UserDetail />} />
+```
+
+## Related Commands
+
+- [`crud`](/cli/01_commands/crud) - Generate basic CRUD operations
+- [`crud-unified`](/cli/01_commands/crud-unified) - Generate a complete CRUD setup
+- [`data-provider`](/cli/01_commands/data-provider) - Generate data providers for your Zopio project

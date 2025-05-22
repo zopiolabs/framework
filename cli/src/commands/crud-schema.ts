@@ -1,6 +1,5 @@
-// Use CommonJS require for commander to avoid TypeScript issues
-// @ts-ignore
-const { Command } = require('commander');
+// Use ES module import for commander
+import { Command } from 'commander';
 import chalk from 'chalk';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -116,6 +115,7 @@ ${fieldDefinitions}
 /**
  * Command to generate CRUD schema for a model
  */
+// @ts-ignore: Command is imported as a type but used as a value
 export const crudSchemaCommand = new Command('crud-schema')
   .description('Generate JSON schema and TypeScript interface for a model')
   .option('-m, --model <name>', 'Model name')

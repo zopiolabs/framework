@@ -1,6 +1,5 @@
-// Use CommonJS require for commander to avoid TypeScript issues
-// @ts-ignore
-const { Command } = require('commander');
+// Use ES module import for commander
+import { Command } from 'commander';
 import chalk from 'chalk';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -378,6 +377,7 @@ function mapTypeToTypeScript(type: string): string {
 /**
  * Command to generate validation schemas for a model
  */
+// @ts-ignore: Command is imported as a type but used as a value
 export const crudValidationCommand = new Command('crud-validation')
   .description('Generate validation schemas for a model')
   .option('-m, --model <name>', 'Model name')

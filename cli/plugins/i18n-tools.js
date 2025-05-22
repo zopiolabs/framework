@@ -1,13 +1,34 @@
 import { Command } from 'commander';
 import fs from 'node:fs';
 import path from 'node:path';
-import { logger } from '../utils/helpers.js';
+// Use a dynamic import for the helpers module to avoid path issues
+let logger;
+
+// This will be initialized in the plugin function
+const initLogger = async () => {
+  try {
+    // Using console.log temporarily until logger is initialized
+    console.log('Initializing i18n-tools plugin...');
+    
+    // Simple logger implementation in case the import fails
+    logger = {
+      info: (msg) => console.log(`\x1b[36mINFO\x1b[0m: ${msg}`),
+      success: (msg) => console.log(`\x1b[32mSUCCESS\x1b[0m: ${msg}`),
+      error: (msg) => console.log(`\x1b[31mERROR\x1b[0m: ${msg}`),
+      warn: (msg) => console.log(`\x1b[33mWARN\x1b[0m: ${msg}`)
+    };
+  } catch (error) {
+    console.error('Failed to import logger:', error);
+  }
+};
 
 /**
  * Advanced internationalization tools plugin for Zopio CLI
  * Provides additional functionality for working with translations
  */
-export default function initPlugin() {
+export default async function initPlugin() {
+  // Initialize the logger
+  await initLogger();
   // Create a command for analyzing translation coverage
   const analyzeCommand = new Command('i18n-analyze')
     .description('Analyze translation coverage across locales')

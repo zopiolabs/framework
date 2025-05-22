@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "tsx ./src/zopio.ts",
     "build": "tsup",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "docs:generate": "tsx ./src/zopio.ts cli --docs ../docs/cli"
   },
   "dependencies": {
     "chalk": "^5.3.0",

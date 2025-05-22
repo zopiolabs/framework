@@ -1,0 +1,160 @@
+---
+title: "i18n"
+description: "Manage internationalization for your Zopio project"
+---
+
+# Internationalization Command
+
+The `i18n` command helps you manage internationalization (i18n) for your Zopio project. This command provides tools for creating, updating, and managing translations across multiple languages.
+
+## Usage
+
+```bash
+zopio i18n [options]
+```
+
+## Options
+
+| Option | Description |
+| ------ | ----------- |
+| `-i, --init` | Initialize internationalization for your project |
+| `-a, --add <locale>` | Add a new locale to your project |
+| `-e, --extract` | Extract translation keys from source files |
+| `-s, --sync` | Synchronize translation files across all locales |
+| `-c, --check` | Check for missing translations |
+| `-h, --help` | Display help for command |
+
+## Examples
+
+### Initialize internationalization
+
+```bash
+zopio i18n --init
+```
+
+This creates the initial configuration and directory structure for internationalization:
+
+```
+project/
+├── dictionaries/
+│   └── en.json
+├── locales/
+│   └── en/
+│       └── common.json
+├── i18nConfig.ts
+└── languine.json
+```
+
+### Add a new locale
+
+```bash
+zopio i18n --add tr
+```
+
+This adds support for Turkish language to your project:
+
+```
+project/
+├── dictionaries/
+│   ├── en.json
+│   └── tr.json
+├── locales/
+│   ├── en/
+│   │   └── common.json
+│   └── tr/
+│       └── common.json
+├── i18nConfig.ts
+└── languine.json
+```
+
+### Extract translation keys
+
+```bash
+zopio i18n --extract
+```
+
+This scans your source files for translation keys and adds them to your translation files.
+
+### Synchronize translation files
+
+```bash
+zopio i18n --sync
+```
+
+This ensures all locales have the same keys, copying missing keys from the default locale.
+
+## Configuration
+
+The internationalization system in Zopio uses the following configuration files:
+
+### i18nConfig.ts
+
+```typescript
+export const i18nConfig = {
+  defaultLocale: 'en',
+  locales: ['en', 'tr', 'es', 'de'],
+  localeCookieName: 'NEXT_LOCALE',
+  localeDetection: true
+};
+```
+
+### languine.json
+
+```json
+{
+  "sourceLocale": "en",
+  "locales": ["en", "tr", "es", "de"],
+  "catalogs": [
+    {
+      "path": "dictionaries/{locale}.json",
+      "include": ["**/*.{js,jsx,ts,tsx}"],
+      "exclude": ["**/node_modules/**"]
+    }
+  ],
+  "format": "minimal"
+}
+```
+
+## Integration with Next.js
+
+Zopio uses next-international for middleware and next-intl for client-side translations. Here's how to use translations in your components:
+
+### Server Components
+
+```tsx
+import { getTranslations } from 'next-intl/server';
+
+export async function MyServerComponent() {
+  const t = await getTranslations('Common');
+  
+  return (
+    <div>
+      <h1>{t('welcome')}</h1>
+      <p>{t('description')}</p>
+    </div>
+  );
+}
+```
+
+### Client Components
+
+```tsx
+'use client';
+
+import { useTranslations } from 'next-intl';
+
+export function MyClientComponent() {
+  const t = useTranslations('Common');
+  
+  return (
+    <div>
+      <h1>{t('welcome')}</h1>
+      <p>{t('description')}</p>
+    </div>
+  );
+}
+```
+
+## Related Commands
+
+- [`i18n-analyze`](/cli/01_commands/i18n-analyze) - Analyze translation coverage across locales (plugin command)

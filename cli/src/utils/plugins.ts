@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Command } from 'commander';
+import type { Command } from 'commander';
 import { logger } from './helpers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -60,7 +60,9 @@ export class PluginManager {
       for (const pluginFile of pluginFiles) {
         try {
           const pluginPath = path.join(builtInPluginsDir, pluginFile);
-          const plugin = await import(pluginPath);
+          // Convert to file:// URL for ES modules
+          const pluginUrl = `file://${pluginPath.replace(/\\/g, '/')}`;
+          const plugin = await import(pluginUrl);
           
           if (plugin.default && typeof plugin.default === 'function') {
             const pluginName = path.basename(pluginFile, '.js');
@@ -86,7 +88,9 @@ export class PluginManager {
       for (const pluginFile of pluginFiles) {
         try {
           const pluginPath = path.join(projectPluginsDir, pluginFile);
-          const plugin = await import(pluginPath);
+          // Convert to file:// URL for ES modules
+          const pluginUrl = `file://${pluginPath.replace(/\\/g, '/')}`;
+          const plugin = await import(pluginUrl);
           
           if (plugin.default && typeof plugin.default === 'function') {
             const pluginName = path.basename(pluginFile, '.js');
@@ -115,7 +119,9 @@ export class PluginManager {
       for (const pluginFile of pluginFiles) {
         try {
           const pluginPath = path.join(userPluginsDir, pluginFile);
-          const plugin = await import(pluginPath);
+          // Convert to file:// URL for ES modules
+          const pluginUrl = `file://${pluginPath.replace(/\\/g, '/')}`;
+          const plugin = await import(pluginUrl);
           
           if (plugin.default && typeof plugin.default === 'function') {
             const pluginName = path.basename(pluginFile, '.js');

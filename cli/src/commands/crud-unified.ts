@@ -1,6 +1,5 @@
-// Use CommonJS require for commander to avoid TypeScript issues
-// @ts-ignore
-const { Command } = require('commander');
+// Use ES module import for commander
+import { Command } from 'commander';
 import chalk from 'chalk';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -58,7 +57,8 @@ function parseRoles(rolesStr: string): Array<{ role: string; permissions: string
 /**
  * Command to generate a complete CRUD setup for a model
  */
-export const unifiedCrudCommand = new Command('crud-unified')
+// @ts-ignore: Command is imported as a type but used as a value
+export const crudUnifiedCommand = new Command('crud-unified')
   .description('Generate a complete CRUD setup for a model')
   .option('-m, --model <name>', 'Model name')
   .option('-f, --fields <fields>', 'Fields in format "name:type:label,age:number:Age"')
@@ -78,7 +78,7 @@ export const unifiedCrudCommand = new Command('crud-unified')
     
     if (!options.model) {
       logger.error('Model name is required. Use --model <name> to specify a model name.');
-      unifiedCrudCommand.help();
+      crudUnifiedCommand.help();
       return;
     }
     

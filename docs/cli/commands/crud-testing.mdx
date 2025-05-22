@@ -1,0 +1,118 @@
+---
+title: "crud-testing"
+description: "Generate tests for CRUD operations"
+---
+
+# CRUD Testing Command
+
+The `crud-testing` command generates test files for CRUD (Create, Read, Update, Delete) operations in your Zopio project. This helps ensure your API endpoints and data handling functions work correctly.
+
+## Usage
+
+```bash
+zopio crud-testing [options]
+```
+
+## Options
+
+| Option | Description |
+| ------ | ----------- |
+| `-m, --model <name>` | Model name |
+| `-f, --fields <fields>` | Fields in format "name:type:example,age:number:30" |
+| `-o, --output <directory>` | Output directory for tests |
+| `-t, --test-framework <framework>` | Test framework (jest, mocha) (default: "jest") |
+| `-h, --help` | Display help for command |
+
+## Examples
+
+### Generate Jest tests for a User model
+
+```bash
+zopio crud-testing --model User --fields "name:string:John Doe,email:string:john@example.com,age:number:30,isActive:boolean:true"
+```
+
+### Generate Mocha tests for a Product model
+
+```bash
+zopio crud-testing --model Product --fields "name:string:Test Product,price:number:99.99,description:string:A test product,inStock:boolean:true" --test-framework mocha
+```
+
+## Generated Files
+
+When you run the `crud-testing` command, the following test files will be generated:
+
+1. **API Tests**: Tests for API endpoints
+2. **Service Tests**: Tests for service functions
+3. **Repository Tests**: Tests for database operations
+4. **Model Tests**: Tests for model validation
+5. **Test Fixtures**: Sample data for testing
+
+### Example Test Structure
+
+```
+tests/
+└── user/
+    ├── user.api.test.js
+    ├── user.service.test.js
+    ├── user.repository.test.js
+    ├── user.model.test.js
+    └── user.fixtures.js
+```
+
+### Example Jest Test
+
+```javascript
+import request from 'supertest';
+import app from '../../app';
+import { createUser, updateUser, userList } from './user.fixtures';
+
+describe('User API', () => {
+  let userId;
+
+  it('should create a new user', async () => {
+    const response = await request(app)
+      .post('/api/users')
+      .send(createUser)
+      .expect(201);
+    
+    expect(response.body).toHaveProperty('id');
+    userId = response.body.id;
+  });
+
+  it('should get all users', async () => {
+    const response = await request(app)
+      .get('/api/users')
+      .expect(200);
+    
+    expect(Array.isArray(response.body)).toBe(true);
+  });
+
+  it('should get a user by id', async () => {
+    const response = await request(app)
+      .get(`/api/users/${userId}`)
+      .expect(200);
+    
+    expect(response.body).toHaveProperty('id', userId);
+  });
+
+  it('should update a user', async () => {
+    const response = await request(app)
+      .put(`/api/users/${userId}`)
+      .send(updateUser)
+      .expect(200);
+    
+    expect(response.body).toHaveProperty('name', updateUser.name);
+  });
+
+  it('should delete a user', async () => {
+    await request(app)
+      .delete(`/api/users/${userId}`)
+      .expect(204);
+  });
+});
+```
+
+## Related Commands
+
+- [`crud`](/cli/01_commands/crud) - Generate basic CRUD operations
+- [`crud-unified`](/cli/01_commands/crud-unified) - Generate a complete CRUD setup

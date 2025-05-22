@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-// Use a CommonJS require for commander to avoid TypeScript issues
-// @ts-ignore
-const { Command } = require("commander");
+// Use ES module import for commander
+import { Command } from 'commander';
 import chalk from "chalk";
 import { initCommand } from "./commands/init";
 import { generateCommand } from "./commands/generate";
@@ -9,18 +8,18 @@ import { i18nCommand } from "./commands/i18n";
 import { configCommand } from "./commands/config";
 import { jobsCommand } from "./commands/jobs";
 import { crudCommand } from "./commands/crud";
-import { dataProviderCommand } from "./commands/data-provider";
 import { crudSchemaCommand } from "./commands/crud-schema";
 import { crudUiCommand } from "./commands/crud-ui";
 import { crudPermissionsCommand } from "./commands/crud-permissions";
-import { unifiedCrudCommand } from "./commands/crud-unified";
+import { crudUnifiedCommand } from "./commands/crud-unified";
+import { dataProviderCommand } from "./commands/data-provider";
 import { crudValidationCommand } from "./commands/crud-validation";
 import { crudTestingCommand } from "./commands/crud-testing";
-// All commands have been converted to TypeScript
 import { logger, isZopioProject } from "./utils/helpers";
 import { pluginManager } from "./utils/plugins";
 
 // Create a new Command instance
+// @ts-ignore: Command is imported as a type but used as a value
 const program = new Command();
 
 program
@@ -89,7 +88,7 @@ program.addCommand(dataProviderCommand);
 program.addCommand(crudSchemaCommand);
 program.addCommand(crudUiCommand);
 program.addCommand(crudPermissionsCommand);
-program.addCommand(unifiedCrudCommand);
+program.addCommand(crudUnifiedCommand);
 program.addCommand(crudValidationCommand);
 program.addCommand(crudTestingCommand);
 

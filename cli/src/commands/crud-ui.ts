@@ -1,6 +1,5 @@
-// Use CommonJS require for commander to avoid TypeScript issues
-// @ts-ignore
-const { Command } = require('commander');
+// Use ES module import for commander
+import { Command } from 'commander';
 import chalk from 'chalk';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -552,6 +551,7 @@ export const ${modelName}Service = {
 /**
  * Command to generate CRUD UI components
  */
+// @ts-ignore: Command is imported as a type but used as a value
 export const crudUiCommand = new Command('crud-ui')
   .description('Generate React components for CRUD operations')
   .option('-m, --model <name>', 'Model name')

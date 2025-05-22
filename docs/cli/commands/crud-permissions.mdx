@@ -1,0 +1,106 @@
+---
+title: "crud-permissions"
+description: "Generate permissions configuration and middleware for a model"
+---
+
+# CRUD Permissions Command
+
+The `crud-permissions` command generates permissions configuration and middleware for a model in your Zopio project. This helps implement role-based access control (RBAC) for your CRUD operations.
+
+## Usage
+
+```bash
+zopio crud-permissions [options]
+```
+
+## Options
+
+| Option | Description |
+| ------ | ----------- |
+| `-m, --model <name>` | Model name |
+| `-r, --roles <roles>` | Roles in format "admin:all,user:read,editor:read,write" |
+| `-o, --output <directory>` | Output directory for permissions files |
+| `-h, --help` | Display help for command |
+
+## Examples
+
+### Generate permissions for a User model
+
+```bash
+zopio crud-permissions --model User --roles "admin:all,user:read,editor:read,write"
+```
+
+### Generate permissions with a custom output directory
+
+```bash
+zopio crud-permissions --model Product --roles "admin:all,manager:all,staff:read,write,customer:read" --output src/permissions
+```
+
+## Generated Files
+
+When you run the `crud-permissions` command, the following files will be generated:
+
+1. **Permissions Configuration**: Defines permissions for each role
+2. **Middleware**: Express middleware for enforcing permissions
+3. **React Hook**: Custom hook for checking permissions in React components
+
+### Example Permissions Configuration
+
+```javascript
+export const UserPermissions = {
+  admin: {
+    create: true,
+    read: true,
+    update: true,
+    delete: true
+  },
+  user: {
+    create: false,
+    read: true,
+    update: false,
+    delete: false
+  },
+  editor: {
+    create: false,
+    read: true,
+    update: true,
+    delete: false
+  }
+};
+```
+
+### Example Express Middleware Usage
+
+```javascript
+import { UserPermissionMiddleware } from './middleware/user.permissions';
+
+// Apply middleware to routes
+router.get('/user', UserPermissionMiddleware.read, controller.getAll);
+router.post('/user', UserPermissionMiddleware.create, controller.create);
+router.put('/user/:id', UserPermissionMiddleware.update, controller.update);
+router.delete('/user/:id', UserPermissionMiddleware.delete, controller.delete);
+```
+
+### Example React Hook Usage
+
+```javascript
+import { useUserPermissions } from './hooks/useUserPermissions';
+
+function UserComponent() {
+  const { canRead, canCreate, canUpdate, canDelete } = useUserPermissions();
+  
+  return (
+    <div>
+      {canRead && <UserList />}
+      {canCreate && <button>Create User</button>}
+      {canUpdate && <button>Edit User</button>}
+      {canDelete && <button>Delete User</button>}
+    </div>
+  );
+}
+```
+
+## Related Commands
+
+- [`crud`](/cli/01_commands/crud) - Generate basic CRUD operations
+- [`crud-unified`](/cli/01_commands/crud-unified) - Generate a complete CRUD setup

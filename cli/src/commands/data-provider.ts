@@ -1,6 +1,5 @@
-// Use CommonJS require for commander to avoid TypeScript issues
-// @ts-ignore
-const { Command } = require('commander');
+// Use ES module import for commander
+import { Command } from 'commander';
 import chalk from 'chalk';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,6 +8,7 @@ import { logger, isZopioProject } from '../utils/helpers';
 /**
  * Command to generate data providers for a Zopio project
  */
+// @ts-ignore: Command is imported as a type but used as a value
 export const dataProviderCommand = new Command('data-provider')
   .description('Generate data providers for your Zopio project')
   .option('-t, --type <type>', 'Type of data provider (rest, graphql, mock)')

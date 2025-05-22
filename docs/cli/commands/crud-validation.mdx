@@ -1,0 +1,120 @@
+---
+title: "crud-validation"
+description: "Generate validation schemas for a model"
+---
+
+# CRUD Validation Command
+
+The `crud-validation` command generates validation schemas for a model in your Zopio project. This helps ensure data integrity and validation across your application.
+
+## Usage
+
+```bash
+zopio crud-validation [options]
+```
+
+## Options
+
+| Option | Description |
+| ------ | ----------- |
+| `-m, --model <name>` | Model name |
+| `-f, --fields <fields>` | Fields in format "name:type:validations,age:number:required\|min=18" |
+| `-o, --output <directory>` | Output directory for validation schemas |
+| `-l, --library <library>` | Validation library (yup, zod, class-validator) (default: "zod") |
+| `-h, --help` | Display help for command |
+
+## Examples
+
+### Generate Zod validation schema for a User model
+
+```bash
+zopio crud-validation --model User --fields "name:string:required,email:string:required|email,age:number:min=18,isActive:boolean"
+```
+
+### Generate Yup validation schema
+
+```bash
+zopio crud-validation --model Product --fields "name:string:required|min=3,price:number:required|min=0,description:string:max=500" --library yup
+```
+
+### Generate class-validator decorators
+
+```bash
+zopio crud-validation --model Customer --fields "name:string:IsNotEmpty,email:string:IsEmail,phone:string:IsPhoneNumber" --library class-validator
+```
+
+## Generated Files
+
+When you run the `crud-validation` command, validation schemas will be generated based on the specified library:
+
+### Zod Schema Example
+
+```typescript
+import { z } from 'zod';
+
+export const UserSchema = z.object({
+  id: z.string().uuid().optional(),
+  name: z.string().min(1, { message: "Name is required" }),
+  email: z.string().email({ message: "Invalid email address" }),
+  age: z.number().min(18, { message: "Must be at least 18 years old" }),
+  isActive: z.boolean().optional(),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
+});
+
+export type User = z.infer<typeof UserSchema>;
+```
+
+### Yup Schema Example
+
+```typescript
+import * as yup from 'yup';
+
+export const UserSchema = yup.object({
+  id: yup.string().uuid(),
+  name: yup.string().required("Name is required"),
+  email: yup.string().email("Invalid email address").required("Email is required"),
+  age: yup.number().min(18, "Must be at least 18 years old").required("Age is required"),
+  isActive: yup.boolean(),
+  createdAt: yup.date(),
+  updatedAt: yup.date(),
+});
+
+export type User = yup.InferType<typeof UserSchema>;
+```
+
+### Class Validator Example
+
+```typescript
+import { IsNotEmpty, IsEmail, Min, IsBoolean, IsUUID, IsDate } from 'class-validator';
+
+export class User {
+  @IsUUID()
+  id: string;
+
+  @IsNotEmpty({ message: "Name is required" })
+  name: string;
+
+  @IsEmail({}, { message: "Invalid email address" })
+  @IsNotEmpty({ message: "Email is required" })
+  email: string;
+
+  @Min(18, { message: "Must be at least 18 years old" })
+  age: number;
+
+  @IsBoolean()
+  isActive: boolean;
+
+  @IsDate()
+  createdAt: Date;
+
+  @IsDate()
+  updatedAt: Date;
+}
+```
+
+## Related Commands
+
+- [`crud`](/cli/01_commands/crud) - Generate basic CRUD operations
+- [`crud-schema`](/cli/01_commands/crud-schema) - Generate JSON schema and TypeScript interface
+- [`crud-unified`](/cli/01_commands/crud-unified) - Generate a complete CRUD setup

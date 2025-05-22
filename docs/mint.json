@@ -80,10 +80,28 @@
       "icon": "terminal",
       "pages": [
         "cli/overview",
-        "cli/commands",
-        "cli/internationalization",
-        "cli/plugins",
+        {
+          "group": "Commands",
+          "icon": "code",
+          "pages": [
+            "cli/commands/init",
+            "cli/commands/generate",
+            "cli/commands/config",
+            "cli/commands/i18n",
+            "cli/commands/jobs",
+            "cli/commands/crud",
+            "cli/commands/crud-schema",
+            "cli/commands/crud-ui",
+            "cli/commands/crud-permissions",
+            "cli/commands/crud-validation",
+            "cli/commands/crud-testing",
+            "cli/commands/crud-unified",
+            "cli/commands/data-provider"
+          ]
+        },
         "cli/advanced-usage",
+        "cli/plugins",
+        "cli/internationalization",
         "cli/troubleshooting"
       ]
     },

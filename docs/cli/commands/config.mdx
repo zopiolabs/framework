@@ -1,0 +1,134 @@
+---
+title: "config"
+description: "Manage Zopio project configuration"
+---
+
+# Configuration Command
+
+The `config` command helps you manage configuration settings for your Zopio project. This command provides tools for viewing, setting, and resetting configuration values.
+
+## Usage
+
+```bash
+zopio config [options]
+```
+
+## Options
+
+| Option | Description |
+| ------ | ----------- |
+| `-g, --get <key>` | Get a configuration value |
+| `-s, --set <key> <value>` | Set a configuration value |
+| `-d, --delete <key>` | Delete a configuration value |
+| `-l, --list` | List all configuration values |
+| `-r, --reset` | Reset configuration to default values |
+| `-h, --help` | Display help for command |
+
+## Examples
+
+### List all configuration values
+
+```bash
+zopio config --list
+```
+
+This displays all current configuration values:
+
+```
+Configuration:
+  api.baseUrl: http://localhost:3000/api
+  api.timeout: 5000
+  database.type: postgres
+  database.host: localhost
+  database.port: 5432
+  i18n.defaultLocale: en
+  i18n.supportedLocales: en,tr,es,de
+```
+
+### Get a specific configuration value
+
+```bash
+zopio config --get api.baseUrl
+```
+
+Output:
+```
+api.baseUrl: http://localhost:3000/api
+```
+
+### Set a configuration value
+
+```bash
+zopio config --set api.baseUrl http://api.example.com
+```
+
+Output:
+```
+Configuration updated:
+  api.baseUrl: http://api.example.com
+```
+
+### Delete a configuration value
+
+```bash
+zopio config --delete api.timeout
+```
+
+Output:
+```
+Configuration value deleted: api.timeout
+```
+
+### Reset configuration to defaults
+
+```bash
+zopio config --reset
+```
+
+Output:
+```
+Configuration reset to default values.
+```
+
+## Configuration File
+
+Zopio stores configuration in a `.zopiorc.json` file in the project root. This is a JSON file that contains all the configuration values:
+
+```json
+{
+  "api": {
+    "baseUrl": "http://localhost:3000/api",
+    "timeout": 5000
+  },
+  "database": {
+    "type": "postgres",
+    "host": "localhost",
+    "port": 5432,
+    "username": "postgres",
+    "password": "password",
+    "database": "zopio"
+  },
+  "i18n": {
+    "defaultLocale": "en",
+    "supportedLocales": ["en", "tr", "es", "de"]
+  },
+  "plugins": {
+    "enabled": ["i18n-tools"]
+  }
+}
+```
+
+## Environment-Specific Configuration
+
+You can create environment-specific configuration files by adding a suffix to the filename:
+
+- `.zopiorc.development.json` - Development environment
+- `.zopiorc.production.json` - Production environment
+- `.zopiorc.test.json` - Test environment
+
+The environment is determined by the `NODE_ENV` environment variable.
+
+## Related Commands
+
+- [`init`](/cli/01_commands/init) - Initialize a new Zopio project
+- [`i18n`](/cli/01_commands/i18n) - Manage internationalization for your Zopio project

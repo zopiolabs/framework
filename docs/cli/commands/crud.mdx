@@ -1,0 +1,58 @@
+---
+title: "crud"
+description: "Generate CRUD operations for your Zopio project"
+---
+
+# CRUD Command
+
+The `crud` command generates basic CRUD (Create, Read, Update, Delete) operations for your Zopio project. This command creates the necessary files for handling data operations in your application.
+
+## Usage
+
+```bash
+zopio crud [options]
+```
+
+## Options
+
+| Option | Description |
+| ------ | ----------- |
+| `-m, --model <name>` | Model name for CRUD operations |
+| `-f, --fields <fields>` | Fields in format "name:type,age:number" |
+| `-o, --output <directory>` | Output directory for generated files |
+| `-h, --help` | Display help for command |
+
+## Examples
+
+### Generate CRUD operations for a User model
+
+```bash
+zopio crud --model User --fields "name:string,email:string,age:number,isActive:boolean"
+```
+
+### Generate CRUD operations with a custom output directory
+
+```bash
+zopio crud --model Product --fields "name:string,price:number,description:string,inStock:boolean" --output src/modules/products
+```
+
+## Generated Files
+
+When you run the `crud` command, the following files will be generated:
+
+1. **Controller**: Handles HTTP requests and responses
+2. **Service**: Contains business logic for CRUD operations
+3. **Repository**: Interacts with the database
+4. **Routes**: Defines API endpoints for CRUD operations
+5. **Model**: Defines the data structure
+
+## Related Commands
+
+For more specialized CRUD generation, you can use these related commands:
+
+- [`crud-schema`](/cli/01_commands/crud-schema) - Generate JSON schema and TypeScript interface for a model
+- [`crud-ui`](/cli/01_commands/crud-ui) - Generate UI components for CRUD operations
+- [`crud-permissions`](/cli/01_commands/crud-permissions) - Generate permissions configuration
+- [`crud-unified`](/cli/01_commands/crud-unified) - Generate a complete CRUD setup
+- [`crud-validation`](/cli/01_commands/crud-validation) - Generate validation schemas
+- [`crud-testing`](/cli/01_commands/crud-testing) - Generate tests for CRUD operations

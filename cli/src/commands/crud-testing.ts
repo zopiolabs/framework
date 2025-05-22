@@ -1,6 +1,5 @@
-// Use CommonJS require for commander to avoid TypeScript issues
-// @ts-ignore
-const { Command } = require('commander');
+// Use ES module import for commander
+import { Command } from 'commander';
 import chalk from 'chalk';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -555,6 +554,7 @@ ${fields.map(field => {
 /**
  * Command to generate tests for CRUD operations
  */
+// @ts-ignore: Command is imported as a type but used as a value
 export const crudTestingCommand = new Command('crud-testing')
   .description('Generate tests for CRUD operations')
   .option('-m, --model <name>', 'Model name')

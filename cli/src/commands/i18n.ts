@@ -1,6 +1,5 @@
-// Use CommonJS require for commander to avoid TypeScript issues
-// @ts-ignore
-const { Command } = require('commander');
+// Use ES module import for commander
+import { Command } from 'commander';
 import fs from "node:fs";
 import path from "node:path";
 import { logger, getI18nConfig, createFile } from "../utils/helpers";

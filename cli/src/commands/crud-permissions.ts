@@ -1,6 +1,5 @@
-// Use CommonJS require for commander to avoid TypeScript issues
-// @ts-ignore
-const { Command } = require('commander');
+// Use ES module import for commander
+import { Command } from 'commander';
 import chalk from 'chalk';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -178,6 +177,7 @@ export const use${modelName}Permissions = () => {
 /**
  * Command to generate CRUD permissions
  */
+// @ts-ignore: Command is imported as a type but used as a value
 export const crudPermissionsCommand = new Command('crud-permissions')
   .description('Generate permissions configuration and middleware for a model')
   .option('-m, --model <name>', 'Model name')
@@ -240,8 +240,8 @@ export const crudPermissionsCommand = new Command('crud-permissions')
     fs.writeFileSync(hookPath, permissionsHook);
     logger.success(`Generated permissions hook: ${chalk.green(hookPath)}`);
     
-    logger.info(`\nYou can now use these files to implement permissions in your application.`);
-    logger.info(`\nExample usage in Express routes:`);
+    logger.info('\nYou can now use these files to implement permissions in your application.');
+    logger.info('\nExample usage in Express routes:');
     logger.info(`
 import { ${modelName}PermissionMiddleware } from './middleware/${modelName.toLowerCase()}.permissions';
 
@@ -252,7 +252,7 @@ router.put('/${modelName.toLowerCase()}/:id', ${modelName}PermissionMiddleware.u
 router.delete('/${modelName.toLowerCase()}/:id', ${modelName}PermissionMiddleware.delete, controller.delete);
 `);
     
-    logger.info(`\nExample usage in React components:`);
+    logger.info('\nExample usage in React components:');
     logger.info(`
 import { use${modelName}Permissions } from './hooks/use${modelName}Permissions';
 

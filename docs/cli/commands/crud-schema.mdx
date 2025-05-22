@@ -1,0 +1,85 @@
+---
+title: "crud-schema"
+description: "Generate JSON schema and TypeScript interface for a model"
+---
+
+# CRUD Schema Command
+
+The `crud-schema` command generates JSON schema and TypeScript interface definitions for a model in your Zopio project. This helps ensure type safety and data validation across your application.
+
+## Usage
+
+```bash
+zopio crud-schema [options]
+```
+
+## Options
+
+| Option | Description |
+| ------ | ----------- |
+| `-m, --model <name>` | Model name |
+| `-f, --fields <fields>` | Fields in format "name:type,age:number" |
+| `-o, --output <directory>` | Output directory for generated schemas |
+| `-h, --help` | Display help for command |
+
+## Examples
+
+### Generate schema for a User model
+
+```bash
+zopio crud-schema --model User --fields "name:string,email:string,age:number,isActive:boolean"
+```
+
+### Generate schema with a custom output directory
+
+```bash
+zopio crud-schema --model Product --fields "name:string,price:number,description:string,inStock:boolean" --output src/schemas
+```
+
+## Generated Files
+
+When you run the `crud-schema` command, the following files will be generated:
+
+1. **TypeScript Interface**: A TypeScript interface for the model
+2. **JSON Schema**: A JSON schema definition for validation
+3. **Schema Utils**: Helper functions for working with the schema
+
+### Example TypeScript Interface
+
+```typescript
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  age: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+### Example JSON Schema
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "User",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "name": { "type": "string" },
+    "email": { "type": "string", "format": "email" },
+    "age": { "type": "number" },
+    "isActive": { "type": "boolean" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "required": ["name", "email"]
+}
+```
+
+## Related Commands
+
+- [`crud`](/cli/01_commands/crud) - Generate basic CRUD operations
+- [`crud-unified`](/cli/01_commands/crud-unified) - Generate a complete CRUD setup
+- [`crud-validation`](/cli/01_commands/crud-validation) - Generate validation schemas
