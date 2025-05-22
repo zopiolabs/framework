@@ -288,45 +288,53 @@ zopio crud permissions [options]
 zopio crud permissions --generate user
 ```
 
-#### crud testing
+### crud-testing
 
-Generate tests for CRUD resources.
+Generate tests for CRUD operations, including API endpoint tests and UI component tests.
 
 ```bash
-zopio crud testing [options]
+zopio crud-testing [options]
 ```
 
 **Options:**
-- `-r, --resource <n>` - Resource name
-- `-t, --types <types>` - Test types to generate (unit,integration,e2e) (default: "unit,integration")
-- `-o, --output <path>` - Output directory (default: "tests")
-- `-f, --framework <framework>` - Test framework to use
-- `-l, --list` - List available test types
+- `-m, --model <model>` - Model name (required)
+- `-f, --fields <fields>` - Field definitions in format "name:type:example" (required)
+- `-t, --test-type <type>` - Test type (api | ui | both) (default: "both")
+- `-fw, --framework <framework>` - Testing framework (jest | vitest) (default: "jest")
+- `-o, --output <directory>` - Output directory for tests
 
 **Example:**
 ```bash
-zopio crud testing --resource user --types "unit,integration,e2e"
+zopio crud-testing -m Product -f "name:string:Test Product,price:number:99.99,inStock:boolean:true" -t api -fw jest
 ```
 
-#### crud validation
+This command generates tests for the specified model using the chosen testing framework. The field definitions include name, type, and example values used in the tests. You can generate API tests, UI component tests, or both.
 
-Generate validation schemas for CRUD resources.
+### crud-validation
+
+Generate validation schemas for models using popular validation libraries.
 
 ```bash
-zopio crud validation [options]
+zopio crud-validation [options]
 ```
 
 **Options:**
-- `-r, --resource <n>` - Resource name
-- `-l, --library <library>` - Validation library (zod, yup, joi, ajv) (default: "zod")
-- `-a, --all` - Generate schemas for all supported libraries
-- `-o, --output <path>` - Output directory (default: "validations")
-- `-ls, --list` - List available validation libraries
+- `-m, --model <model>` - Model name (required)
+- `-f, --fields <fields>` - Field definitions in format "name:type:validations" (required)
+- `-o, --output <directory>` - Output directory for validation schemas
+- `-l, --library <library>` - Validation library (yup, zod, class-validator) (default: "yup")
 
 **Example:**
 ```bash
-zopio crud validation --resource user --library zod
+zopio crud-validation -m User -f "name:string:required|min=2,email:string:required|pattern=^[^\s@]+@[^\s@]+\.[^\s@]+$,age:number:min=18|max=120"
 ```
+
+This command generates validation schemas for the specified model using the chosen validation library. The field definitions include name, type, and validation rules separated by pipes (`|`). Available validation rules include:
+
+- `required` - Field is required
+- `min=X` - Minimum value/length
+- `max=X` - Maximum value/length
+- `pattern=X` - Regular expression pattern
 
 ## Plugin Commands
 

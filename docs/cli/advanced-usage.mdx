@@ -6,7 +6,7 @@ icon: 'code'
 
 # Advanced Usage
 
-This guide covers advanced techniques and features of the Zopio CLI for experienced users.
+This guide covers advanced techniques and features of the Zopio CLI for experienced users. The CLI is now fully implemented in TypeScript, providing better type safety and developer experience.
 
 ## Environment Variables
 
@@ -27,6 +27,48 @@ ZOPIO_CONFIG_PATH=./custom-config.js zopio init
 
 # Set Turkish as the default locale for all commands
 ZOPIO_LOCALE=tr zopio generate i18n user-messages
+```
+
+## TypeScript Support
+
+The Zopio CLI is now fully implemented in TypeScript, providing better type safety and developer experience. When generating code, you can specify TypeScript output for most commands.
+
+```bash
+# Generate TypeScript components
+zopio component UserProfile --typescript
+
+# Generate TypeScript CRUD operations
+zopio crud -m User -f "name:string,email:string" --typescript
+```
+
+## Validation Schemas
+
+The CLI supports generating validation schemas for your models using popular validation libraries:
+
+```bash
+# Generate a Yup validation schema
+zopio crud-validation -m User -f "name:string:required|min=2,email:string:required" -l yup
+
+# Generate a Zod validation schema
+zopio crud-validation -m Product -f "name:string:required,price:number:min=0" -l zod
+
+# Generate a class-validator schema
+zopio crud-validation -m Order -f "id:string:required,total:number:min=0" -l class-validator
+```
+
+## Testing Support
+
+Generate comprehensive tests for your CRUD operations:
+
+```bash
+# Generate API tests with Jest
+zopio crud-testing -m User -f "name:string:John Doe,email:string:john@example.com" -t api -fw jest
+
+# Generate UI component tests with Vitest
+zopio crud-testing -m Product -f "name:string:Test Product,price:number:99.99" -t ui -fw vitest
+
+# Generate both API and UI tests
+zopio crud-testing -m Order -f "id:string:ORD-123,total:number:99.99" -t both
 ```
 
 ## Custom Templates
