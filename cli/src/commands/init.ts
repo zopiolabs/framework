@@ -1,17 +1,23 @@
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
+import { logger } from "../utils/helpers.js";
+
+interface InitCommandOptions {
+  template: string;
+  locale: string;
+}
 
 export const initCommand = new Command("init")
   .description("Initialize a new zopio project")
   .option("-t, --template <template>", "Template to use for initialization", "default")
   .option("-l, --locale <locale>", "Default locale for internationalization", "en")
-  .action((options) => {
+  .action((options: InitCommandOptions) => {
     const cwd = process.cwd();
     const pkg = path.join(cwd, "package.json");
     
     if (fs.existsSync(pkg)) {
-      console.log("A project already exists here.");
+      logger.warning("A project already exists here.");
       return;
     }
     
@@ -41,12 +47,12 @@ export const initCommand = new Command("init")
       if (!fs.existsSync(path.join(cwd, dir))) {
         fs.mkdirSync(path.join(cwd, dir), { recursive: true });
       }
-    };
+    }
     
     // Create i18n config based on memory
     const i18nConfig = {
       defaultLocale: options.locale,
-      locales: ["en", "tr", "es", "de"],
+      locales: ["en", "tr", "es", "de"], // Using supported locales from memory
       localeDetection: true
     };
     
@@ -55,5 +61,5 @@ export const initCommand = new Command("init")
       `export const i18nConfig = ${JSON.stringify(i18nConfig, null, 2)};`
     );
     
-    console.log(`✅ Initialized zopio project with ${options.template} template and ${options.locale} locale.`);
+    logger.success(`Initialized zopio project with ${options.template} template and ${options.locale} locale.`);
   });

@@ -1,6 +1,19 @@
-export default function translationTemplate(namespace, locale) {
+interface TranslationSet {
+  title: string;
+  description: string;
+  button: string;
+  save: string;
+  cancel: string;
+  [key: string]: string;
+}
+
+interface Translations {
+  [locale: string]: TranslationSet;
+}
+
+export default function translationTemplate(namespace: string, locale: string): string {
   // Default translations for different locales based on memory
-  const translations = {
+  const translations: Translations = {
     en: {
       title: 'Title',
       description: 'Description',

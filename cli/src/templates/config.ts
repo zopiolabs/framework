@@ -1,4 +1,8 @@
-export default function configTemplate(options = {}) {
+interface ConfigOptions {
+  projectName?: string;
+}
+
+export default function configTemplate(options: ConfigOptions = {}): string {
   const { projectName = 'zopio-app' } = options;
   
   return `// Zopio Configuration File

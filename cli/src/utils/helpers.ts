@@ -10,17 +10,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * Log messages with consistent styling
  */
 export const logger = {
-  info: (message) => console.log(chalk.blue('ℹ'), message),
-  success: (message) => console.log(chalk.green('✓'), message),
-  warning: (message) => console.log(chalk.yellow('⚠'), message),
-  error: (message) => console.log(chalk.red('✗'), message),
-  title: (message) => console.log(chalk.bold.cyan(`\n${message}\n`))
+  info: (message: string): void => console.log(chalk.blue('ℹ'), message),
+  success: (message: string): void => console.log(chalk.green('✓'), message),
+  warning: (message: string): void => console.log(chalk.yellow('⚠'), message),
+  error: (message: string): void => console.log(chalk.red('✗'), message),
+  title: (message: string): void => console.log(chalk.bold.cyan(`\n${message}\n`))
 };
 
 /**
  * Check if the current directory is a Zopio project
  */
-export function isZopioProject(directory = process.cwd()) {
+export function isZopioProject(directory: string = process.cwd()): boolean {
   const packageJsonPath = path.join(directory, 'package.json');
   
   if (!fs.existsSync(packageJsonPath)) {
@@ -29,7 +29,7 @@ export function isZopioProject(directory = process.cwd()) {
   
   try {
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-    return packageJson.dependencies?.zopio || packageJson.devDependencies?.zopio;
+    return Boolean(packageJson.dependencies?.zopio || packageJson.devDependencies?.zopio);
   } catch (error) {
     return false;
   }
@@ -38,7 +38,7 @@ export function isZopioProject(directory = process.cwd()) {
 /**
  * Get the project configuration
  */
-export function getProjectConfig(directory = process.cwd()) {
+export async function getProjectConfig(directory: string = process.cwd()): Promise<any | null> {
   const configPath = path.join(directory, 'zopio.config.js');
   
   if (fs.existsSync(configPath)) {
@@ -46,7 +46,7 @@ export function getProjectConfig(directory = process.cwd()) {
       // Dynamic import for ESM compatibility
       return import(configPath);
     } catch (error) {
-      logger.error(`Failed to load project configuration: ${error.message}`);
+      logger.error(`Failed to load project configuration: ${(error as Error).message}`);
       return null;
     }
   }
@@ -57,7 +57,7 @@ export function getProjectConfig(directory = process.cwd()) {
 /**
  * Get i18n configuration
  */
-export function getI18nConfig(directory = process.cwd()) {
+export function getI18nConfig(directory: string = process.cwd()): { defaultLocale: string; locales: string[] } {
   const i18nConfigPath = path.join(directory, 'i18nConfig.ts');
   const languineJsonPath = path.join(directory, 'languine.json');
   
@@ -71,7 +71,7 @@ export function getI18nConfig(directory = process.cwd()) {
         return JSON.parse(match[1].replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":'));
       }
     } catch (error) {
-      logger.error(`Failed to parse i18nConfig.ts: ${error.message}`);
+      logger.error(`Failed to parse i18nConfig.ts: ${(error as Error).message}`);
     }
   }
   
@@ -79,7 +79,7 @@ export function getI18nConfig(directory = process.cwd()) {
     try {
       return JSON.parse(fs.readFileSync(languineJsonPath, 'utf8'));
     } catch (error) {
-      logger.error(`Failed to parse languine.json: ${error.message}`);
+      logger.error(`Failed to parse languine.json: ${(error as Error).message}`);
     }
   }
   
@@ -93,7 +93,7 @@ export function getI18nConfig(directory = process.cwd()) {
 /**
  * Create a file with content
  */
-export function createFile(filePath, content) {
+export function createFile(filePath: string, content: string): boolean {
   try {
     const dirPath = path.dirname(filePath);
     if (!fs.existsSync(dirPath)) {
@@ -102,7 +102,7 @@ export function createFile(filePath, content) {
     fs.writeFileSync(filePath, content);
     return true;
   } catch (error) {
-    logger.error(`Failed to create file ${filePath}: ${error.message}`);
+    logger.error(`Failed to create file ${filePath}: ${(error as Error).message}`);
     return false;
   }
 }
@@ -110,8 +110,8 @@ export function createFile(filePath, content) {
 /**
  * Get template content
  */
-export function getTemplate(templateName) {
-  const templatesDir = path.join(__dirname, '..', 'templates');
+export function getTemplate(templateName: string): string | null {
+  const templatesDir = path.join(__dirname, '..', '..', 'templates');
   const templatePath = path.join(templatesDir, `${templateName}.js`);
   
   if (fs.existsSync(templatePath)) {

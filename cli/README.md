@@ -1,12 +1,13 @@
 # Zopio CLI
 
-A developer-first command-line interface for the Zopio B2B Framework.
+A developer-first command-line interface for the Zopio B2B Framework, now implemented in TypeScript for better type safety and developer experience.
 
 ## Features
 
 - **Project Initialization**: Quickly bootstrap new Zopio projects
 - **Code Generation**: Generate modules, components, and other code artifacts
 - **Internationalization Support**: Manage translations and locales for your application
+- **TypeScript Support**: Fully implemented in TypeScript for better type safety
 - **Developer Experience**: Designed with developer productivity in mind
 
 ## Installation
@@ -65,6 +66,17 @@ The Zopio framework supports the following locales out of the box:
 
 ## Development
 
+### TypeScript Implementation
+
+The Zopio CLI has been migrated from JavaScript to TypeScript, providing several benefits:
+
+- Better type safety and error checking
+- Improved code completion and IntelliSense
+- Better code organization and maintainability
+- Modern ES module support
+
+### Development Workflow
+
 To contribute to the Zopio CLI:
 
 ```bash
@@ -79,6 +91,9 @@ npm install
 
 # Run in development mode
 npm run dev
+
+# Run TypeScript type checking
+npm run typecheck
 
 # Build for production
 npm run build

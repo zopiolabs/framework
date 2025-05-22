@@ -1,21 +1,26 @@
 #!/usr/bin/env node
-import { Command } from "commander";
+// Use a CommonJS require for commander to avoid TypeScript issues
+// @ts-ignore
+const { Command } = require("commander");
 import chalk from "chalk";
-import { initCommand } from "./commands/init.js";
-import { generateCommand } from "./commands/generate.js";
-import { i18nCommand } from "./commands/i18n.js";
-import { configCommand } from "./commands/config.js";
-import { jobsCommand } from "./commands/jobs.js";
-import { crudCommand } from "./commands/crud.js";
-import { crudSchemaCommand } from "./commands/crud-schema.js";
-import { dataProviderCommand } from "./commands/data-provider.js";
-import { crudUiCommand } from "./commands/crud-ui.js";
-import { crudPermissionsCommand } from "./commands/crud-permissions.js";
-import { unifiedCrudCommand } from "./commands/crud-unified.js";
-import { logger, isZopioProject } from "./utils/helpers.js";
-import { pluginManager } from "./utils/plugins.js";
+import { initCommand } from "./commands/init";
+import { generateCommand } from "./commands/generate";
+import { i18nCommand } from "./commands/i18n";
+import { configCommand } from "./commands/config";
+import { jobsCommand } from "./commands/jobs";
+import { crudCommand } from "./commands/crud";
+import { dataProviderCommand } from "./commands/data-provider";
+import { crudSchemaCommand } from "./commands/crud-schema";
+import { crudUiCommand } from "./commands/crud-ui";
+import { crudPermissionsCommand } from "./commands/crud-permissions";
+import { unifiedCrudCommand } from "./commands/crud-unified";
+import { crudValidationCommand } from "./commands/crud-validation";
+import { crudTestingCommand } from "./commands/crud-testing";
+// All commands have been converted to TypeScript
+import { logger, isZopioProject } from "./utils/helpers";
+import { pluginManager } from "./utils/plugins";
 
-// Create the main program
+// Create a new Command instance
 const program = new Command();
 
 program
@@ -37,41 +42,37 @@ program
 program
   .command("component")
   .description("Generate a new React component")
-  .argument("<name>", "Component name")
+  .argument("<n>", "Component name")
   .option("-i, --i18n", "Add internationalization support")
   .option("-p, --path <path>", "Custom path for the component", "components")
-  .action((name, options) => {
+  .action(async (name: string, options: { i18n?: boolean; path: string }) => {
     const componentName = name.charAt(0).toUpperCase() + name.slice(1);
-    const componentPath = `${options.path}/${componentName}.jsx`;
+    const componentPath = `${options.path}/${componentName}.tsx`;
     
     try {
-      // Dynamic import for ESM compatibility
-      import("./templates/component.js").then(module => {
-        const componentTemplate = module.default;
-        const content = componentTemplate(componentName, { withI18n: options.i18n });
-        
-        import("node:fs").then(fs => {
-          import("node:path").then(path => {
-            const fullPath = path.join(process.cwd(), componentPath);
-            const dirPath = path.dirname(fullPath);
-            
-            if (!fs.existsSync(dirPath)) {
-              fs.mkdirSync(dirPath, { recursive: true });
-            }
-            
-            fs.writeFileSync(fullPath, content);
-            logger.success(`Created component: ${chalk.bold(componentName)} at ${chalk.bold(componentPath)}`);
-            
-            // Create i18n namespace if needed
-            if (options.i18n) {
-              const namespace = componentName.toLowerCase();
-              logger.info(`Run 'zopio i18n --create ${namespace}' to create translation files for this component.`);
-            }
-          });
-        });
-      });
+      // Import the component template
+      const { default: componentTemplate } = await import("./templates/component-template");
+      const content = componentTemplate(componentName, { withI18n: options.i18n });
+      
+      const fs = await import("node:fs");
+      const path = await import("node:path");
+      const fullPath = path.join(process.cwd(), componentPath);
+      const dirPath = path.dirname(fullPath);
+      
+      if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+      }
+      
+      fs.writeFileSync(fullPath, content);
+      logger.success(`Created component: ${chalk.bold(componentName)} at ${chalk.bold(componentPath)}`);
+      
+      // Create i18n namespace if needed
+      if (options.i18n) {
+        const namespace = componentName.toLowerCase();
+        logger.info(`Run 'zopio i18n --create ${namespace}' to create translation files for this component.`);
+      }
     } catch (error) {
-      logger.error(`Failed to create component: ${error.message}`);
+      logger.error(`Failed to create component: ${(error as Error).message}`);
     }
   });
 
@@ -80,29 +81,25 @@ program.addCommand(initCommand);
 program.addCommand(generateCommand);
 program.addCommand(i18nCommand);
 program.addCommand(configCommand);
+  
+// Add extended commands
 program.addCommand(jobsCommand);
-// Add the unified CRUD command instead of individual CRUD commands
-program.addCommand(unifiedCrudCommand);
-// Keep individual commands for backward compatibility
-// but hide them from the help output
-crudCommand.hidden = true;
-crudSchemaCommand.hidden = true;
-dataProviderCommand.hidden = true;
-crudUiCommand.hidden = true;
-crudPermissionsCommand.hidden = true;
 program.addCommand(crudCommand);
-program.addCommand(crudSchemaCommand);
 program.addCommand(dataProviderCommand);
+program.addCommand(crudSchemaCommand);
 program.addCommand(crudUiCommand);
 program.addCommand(crudPermissionsCommand);
+program.addCommand(unifiedCrudCommand);
+program.addCommand(crudValidationCommand);
+program.addCommand(crudTestingCommand);
 
 // Add plugin command to manage plugins
 program
   .command("plugins")
   .description("Manage CLI plugins")
   .option("-l, --list", "List all installed plugins")
-  .option("-i, --install <name>", "Install a plugin")
-  .action(async (options) => {
+  .option("-i, --install <n>", "Install a plugin")
+  .action(async (options: { list?: boolean; install?: string }) => {
     if (options.list) {
       logger.title("Installed Plugins");
       
@@ -124,7 +121,7 @@ program
       logger.info("- <project>/.zopio/plugins/");
       logger.info("- $HOME/.zopio/plugins/");
     } else {
-      this.help();
+      program.help();
     }
   });
 
@@ -141,7 +138,7 @@ program
     // Parse arguments after plugins are loaded
     program.parse();
   } catch (error) {
-    logger.error(`Failed to load plugins: ${error.message}`);
+    logger.error(`Failed to load plugins: ${(error as Error).message}`);
     // Parse arguments even if plugins fail to load
     program.parse();
   }

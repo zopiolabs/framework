@@ -1,28 +1,84 @@
 # Zopio CLI Developer Guide
 
-This guide provides detailed information for developers working with the Zopio CLI.
+This guide provides detailed information for developers working with the Zopio CLI. The CLI has been migrated from JavaScript to TypeScript for better type safety and developer experience.
+
+## TypeScript Development Workflow
+
+The Zopio CLI has been migrated from JavaScript to TypeScript. This provides several benefits:
+
+* Better type safety and error checking
+* Improved code completion and IntelliSense
+* Better code organization and maintainability
+* Modern ES module support
+
+## Available Commands
+
+The Zopio CLI now includes the following TypeScript commands:
+
+### Core Commands
+
+* **init**: Initialize a new Zopio project
+* **generate**: Generate code artifacts like components, modules, etc.
+* **config**: Manage project configuration
+* **i18n**: Manage internationalization and localization
+
+### CRUD Commands
+
+* **crud**: Generate CRUD operations for a model
+* **crud-schema**: Generate JSON schema and TypeScript interface for a model
+* **crud-ui**: Generate React components for CRUD operations
+* **crud-permissions**: Generate permissions configuration and middleware
+* **crud-unified**: Generate a complete CRUD setup (combines all CRUD commands)
+
+### Data Management
+
+* **data-provider**: Generate data providers (REST, GraphQL, Mock)
+* **jobs**: Manage background jobs
+
+## Command Development
+
+To create a new command for the Zopio CLI, follow these steps:
+
+1. Install the required dependencies by running `npm install` or `yarn install`.
+2. Build the CLI by running `npm run build` or `yarn build`.
+3. Run the CLI using `node dist/zopio.js` or `yarn start`.
 
 ## Architecture
 
-The Zopio CLI has been restructured to follow a clean, modular architecture:
+The Zopio CLI has been restructured to follow a clean, modular architecture with TypeScript:
 
-```
+```bash
 framework/cli/
-├── commands/         # Command implementations
-│   ├── config.js     # Configuration management
-│   ├── generate.js   # Code generation
-│   ├── i18n.js       # Internationalization management
-│   └── init.js       # Project initialization
-├── templates/        # Code templates
-│   ├── component.js  # React component templates
-│   ├── config.js     # Configuration file template
-│   ├── i18n-config.js # i18n configuration template
-│   └── translation.js # Translation file templates
-├── utils/            # Utility functions
-│   └── helpers.js    # Common helper functions
+├── src/                    # TypeScript source files
+│   ├── commands/               # Command implementations
+│   │   ├── config.ts           # Configuration management
+│   │   ├── crud.ts             # CRUD operations
+│   │   ├── crud-permissions.ts # CRUD permissions management
+│   │   ├── crud-schema.ts      # CRUD schema generation
+│   │   ├── crud-ui.ts          # CRUD UI component generation
+│   │   ├── crud-unified.ts     # Unified CRUD command
+│   │   ├── data-provider.ts    # Data provider generation
+│   │   ├── generate.ts         # Code generation
+│   │   ├── i18n.ts             # Internationalization management
+│   │   ├── init.ts             # Project initialization
+│   │   └── jobs.ts             # Background jobs management
+│   ├── templates/    # Code templates
+│   │   ├── component.ts # React component templates
+│   │   ├── config.ts # Configuration file template
+│   │   ├── i18n-config.ts # i18n configuration template
+│   │   └── translation.ts # Translation file templates
+│   ├── utils/        # Utility functions
+│   │   ├── helpers.ts # Common helper functions
+│   │   └── plugins.ts # Plugin management
+│   ├── types/        # TypeScript type definitions
+│   │   └── declarations.d.ts # Type declarations
+│   └── zopio.ts      # Main CLI entry point
+├── dist/             # Compiled JavaScript output
+├── bin/              # Executable files
+│   └── zopio.ts      # CLI entry point
 ├── scripts/          # Build and maintenance scripts
-│   └── build.js      # Build script for distribution
-├── zopio.js          # Main CLI entry point
+├── tsconfig.json     # TypeScript configuration
+├── tsup.config.ts    # Build configuration
 ├── package.json      # Package configuration
 ├── README.md         # User documentation
 └── DEVELOPER_GUIDE.md # Developer documentation

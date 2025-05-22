@@ -1,4 +1,8 @@
-export default function componentTemplate(name, options = {}) {
+interface ComponentOptions {
+  withI18n?: boolean;
+}
+
+export default function componentTemplate(name: string, options: ComponentOptions = {}): string {
   const { withI18n = false } = options;
   
   if (withI18n) {
@@ -6,7 +10,11 @@ export default function componentTemplate(name, options = {}) {
 
 import { useTranslations } from 'next-intl';
 
-export default function ${name}({ className }) {
+interface ${name}Props {
+  className?: string;
+}
+
+export default function ${name}({ className }: ${name}Props) {
   const t = useTranslations('${name.toLowerCase()}');
   
   return (
@@ -21,7 +29,11 @@ export default function ${name}({ className }) {
   
   return `'use client';
 
-export default function ${name}({ className }) {
+interface ${name}Props {
+  className?: string;
+}
+
+export default function ${name}({ className }: ${name}Props) {
   return (
     <div className={className}>
       <h2>${name}</h2>

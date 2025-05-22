@@ -1,15 +1,21 @@
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
-import { logger, isZopioProject } from "../utils/helpers.js";
-import configTemplate from "../templates/config.js";
+import { logger, isZopioProject } from "../utils/helpers";
+import configTemplate from "../templates/config";
+
+interface ConfigCommandOptions {
+  init?: boolean;
+  get?: string;
+  set?: string;
+}
 
 export const configCommand = new Command("config")
   .description("Manage Zopio project configuration")
   .option("-i, --init", "Initialize configuration file")
   .option("-g, --get <key>", "Get configuration value")
   .option("-s, --set <key=value>", "Set configuration value")
-  .action((options) => {
+  .action(async (options: ConfigCommandOptions) => {
     const cwd = process.cwd();
     const configPath = path.join(cwd, "zopio.config.js");
     
@@ -59,5 +65,5 @@ export const configCommand = new Command("config")
     }
     
     // If no options provided, show help
-    this.help();
+    configCommand.help();
   });

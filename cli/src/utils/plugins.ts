@@ -1,15 +1,26 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Command } from 'commander';
 import { logger } from './helpers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+interface Plugin {
+  name: string;
+  commands?: Command[];
+}
+
+type PluginInitFunction = () => Command[];
 
 /**
  * Plugin system for Zopio CLI
  * Allows extending the CLI with custom commands and functionality
  */
 export class PluginManager {
+  plugins: Map<string, Plugin>;
+  commands: Command[];
+
   constructor() {
     this.plugins = new Map();
     this.commands = [];
@@ -18,7 +29,7 @@ export class PluginManager {
   /**
    * Load plugins from the project and user directories
    */
-  async loadPlugins() {
+  async loadPlugins(): Promise<Command[]> {
     try {
       // Load built-in plugins
       await this.loadBuiltInPlugins();
@@ -31,7 +42,7 @@ export class PluginManager {
       
       return this.commands;
     } catch (error) {
-      logger.error(`Failed to load plugins: ${error.message}`);
+      logger.error(`Failed to load plugins: ${(error as Error).message}`);
       return [];
     }
   }
@@ -39,8 +50,8 @@ export class PluginManager {
   /**
    * Load built-in plugins
    */
-  async loadBuiltInPlugins() {
-    const builtInPluginsDir = path.join(__dirname, '..', 'plugins');
+  async loadBuiltInPlugins(): Promise<void> {
+    const builtInPluginsDir = path.join(__dirname, '..', '..', 'plugins');
     
     if (fs.existsSync(builtInPluginsDir)) {
       const pluginFiles = fs.readdirSync(builtInPluginsDir)
@@ -56,7 +67,7 @@ export class PluginManager {
             this.registerPlugin(pluginName, plugin.default);
           }
         } catch (error) {
-          logger.error(`Failed to load built-in plugin ${pluginFile}: ${error.message}`);
+          logger.error(`Failed to load built-in plugin ${pluginFile}: ${(error as Error).message}`);
         }
       }
     }
@@ -65,7 +76,7 @@ export class PluginManager {
   /**
    * Load plugins from the current project
    */
-  async loadProjectPlugins() {
+  async loadProjectPlugins(): Promise<void> {
     const projectPluginsDir = path.join(process.cwd(), '.zopio', 'plugins');
     
     if (fs.existsSync(projectPluginsDir)) {
@@ -82,7 +93,7 @@ export class PluginManager {
             this.registerPlugin(pluginName, plugin.default);
           }
         } catch (error) {
-          logger.error(`Failed to load project plugin ${pluginFile}: ${error.message}`);
+          logger.error(`Failed to load project plugin ${pluginFile}: ${(error as Error).message}`);
         }
       }
     }
@@ -91,8 +102,10 @@ export class PluginManager {
   /**
    * Load plugins from the user's home directory
    */
-  async loadUserPlugins() {
+  async loadUserPlugins(): Promise<void> {
     const userHome = process.env.HOME || process.env.USERPROFILE;
+    if (!userHome) return;
+    
     const userPluginsDir = path.join(userHome, '.zopio', 'plugins');
     
     if (fs.existsSync(userPluginsDir)) {
@@ -109,7 +122,7 @@ export class PluginManager {
             this.registerPlugin(pluginName, plugin.default);
           }
         } catch (error) {
-          logger.error(`Failed to load user plugin ${pluginFile}: ${error.message}`);
+          logger.error(`Failed to load user plugin ${pluginFile}: ${(error as Error).message}`);
         }
       }
     }
@@ -118,7 +131,7 @@ export class PluginManager {
   /**
    * Register a plugin
    */
-  registerPlugin(name, initFunction) {
+  registerPlugin(name: string, initFunction: PluginInitFunction): void {
     if (this.plugins.has(name)) {
       logger.warning(`Plugin '${name}' is already registered. Skipping.`);
       return;
@@ -134,7 +147,7 @@ export class PluginManager {
       
       logger.info(`Loaded plugin: ${name}`);
     } catch (error) {
-      logger.error(`Failed to initialize plugin '${name}': ${error.message}`);
+      logger.error(`Failed to initialize plugin '${name}': ${(error as Error).message}`);
     }
   }
 }
