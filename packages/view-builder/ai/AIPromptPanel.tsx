@@ -1,6 +1,6 @@
-import { useSchemaState } from "../hooks/useSchemaState";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { useSchemaState } from "../hooks/useSchemaState.js";
+import { Button } from "@repo/design-system/components/ui/button";
+import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { useState } from "react";
 
 export function AIPromptPanel() {
@@ -32,7 +32,7 @@ export function AIPromptPanel() {
         rows={3}
         placeholder="Create a form for user profile with name, email, and bio"
         value={prompt}
-        onChange={e => setPrompt(e.target.value)}
+        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setPrompt(e.target.value)}
       />
       <Button onClick={generateSchema} disabled={loading || !prompt} className="w-full">
         {loading ? "Generating..." : "Generate View"}

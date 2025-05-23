@@ -6,7 +6,6 @@
   "license": "MIT",
   "private": true,
   "dependencies": {
-    "@repo/data-ui": "workspace:*"
   },
   "peerDependencies": {
     "@repo/crud-engine": "workspace:*",

@@ -1,30 +1,46 @@
-import { useState, useCallback, useEffect } from "react";
-import { useSchemaState } from "../hooks/useSchemaState";
+import React, { useState, useCallback } from "react";
+import { useSchemaState } from "../hooks/useSchemaState.js";
 import { renderView } from "@repo/view";
-import type { FormField } from "../hooks/useSchemaState";
+import type { FormField } from "../hooks/useSchemaState.js";
 import type { ViewSchema } from "@repo/view/engine/renderers/types";
 
-// UI Components (replace with your actual UI components)
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+// UI Components from design-system
+import { Button } from "@repo/design-system/components/ui/button";
+import { Input } from "@repo/design-system/components/ui/input";
+import { Label } from "@repo/design-system/components/ui/label";
+import { Checkbox } from "@repo/design-system/components/ui/checkbox";
+import { Card } from "@repo/design-system/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@repo/design-system/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/design-system/components/ui/tabs";
+
+// Type declarations for external modules
+declare module "@repo/view" {
+  export function renderView(schema: ViewSchema): React.ReactNode;
+}
+
+// Define types for UI components
+type TabsProps = {
+  value: string;
+  onValueChange: (value: string) => void;
+  className?: string;
+  children: React.ReactNode;
+};
 
 /**
- * Component for rendering a field in the canvas
+ * FieldPreview component for displaying a form field in the canvas
  */
-function FieldPreview({ field, onEdit, onDelete }: { 
-  field: FormField; 
-  onEdit: (field: FormField) => void; 
-  onDelete: (name: string) => void; 
-}) {
+interface FieldPreviewProps {
+  field: FormField;
+  onEdit: (field: FormField) => void;
+  onDelete: (name: string) => void;
+}
+
+function FieldPreview({ field, onEdit, onDelete }: FieldPreviewProps): JSX.Element {
   return (
-    <div className="p-3 border rounded-md mb-2 bg-white shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-center mb-2">
-        <h4 className="font-medium text-sm">{field.label}</h4>
-        <div className="space-x-1">
+    <div className="field-preview p-3 border rounded-md mb-2 bg-white shadow-sm hover:shadow-md transition-shadow" data-field-type={field.type}>
+      <div className="field-preview-header flex justify-between items-center mb-2">
+        <h4 className="font-medium text-sm">{field.label || field.name}</h4>
+        <div className="field-preview-actions space-x-1">
           <Button 
             variant="ghost" 
             size="sm" 
@@ -41,9 +57,9 @@ function FieldPreview({ field, onEdit, onDelete }: {
           </Button>
         </div>
       </div>
-      
-      <div className="text-xs text-muted-foreground mb-2">
-        Type: {field.type} {field.required && "(Required)"}
+      <div className="field-preview-content text-xs text-muted-foreground mb-2">
+        <p>Type: {field.type} {field.required && "(Required)"}</p>
+        {field.description && <p className="field-description">{field.description}</p>}
       </div>
       
       {field.type === "string" && (
@@ -69,18 +85,20 @@ function FieldPreview({ field, onEdit, onDelete }: {
 /**
  * Field editor component
  */
-function FieldEditor({ field, onSave, onCancel }: { 
-  field?: FormField; 
-  onSave: (field: FormField) => void; 
-  onCancel: () => void; 
-}) {
-  const [name, setName] = useState(field?.name || `field-${Date.now()}`);
-  const [label, setLabel] = useState(field?.label || "");
-  const [type, setType] = useState(field?.type || "string");
-  const [required, setRequired] = useState(field?.required || false);
-  const [description, setDescription] = useState(field?.description || "");
-  const [placeholder, setPlaceholder] = useState(field?.placeholder || "");
-  const [options, setOptions] = useState(field?.options?.join(",") || "");
+interface FieldEditorProps {
+  field?: FormField;
+  onSave: (field: FormField) => void;
+  onCancel: () => void;
+}
+
+function FieldEditor({ field, onSave, onCancel }: FieldEditorProps): JSX.Element {
+  const [name, setName] = React.useState(field?.name || `field-${Date.now()}`);
+  const [label, setLabel] = React.useState(field?.label || "");
+  const [type, setType] = React.useState(field?.type || "string");
+  const [required, setRequired] = React.useState(field?.required || false);
+  const [description, setDescription] = React.useState(field?.description || "");
+  const [placeholder, setPlaceholder] = React.useState(field?.placeholder || "");
+  const [options, setOptions] = React.useState(field?.options?.join(",") || "");
   
   const handleSave = () => {
     if (!label) {
@@ -214,6 +232,7 @@ export function DragDropCanvas() {
     setEditingField(field);
   }, []);
   
+  // Define a callback for deleting fields
   const handleDeleteField = useCallback((name: string) => {
     if (confirm(`Are you sure you want to delete the field '${name}'?`)) {
       removeField(name);
@@ -224,17 +243,157 @@ export function DragDropCanvas() {
     setEditingField(undefined);
   }, []);
   
+  // Define field type for schema fields
+  type SchemaField = {
+    label?: string;
+    type?: string;
+    required?: boolean;
+    options?: string[];
+    description?: string;
+    placeholder?: string;
+    section?: string;
+    order?: number;
+  };
+
   // Get fields from schema
   const fields = Object.entries(schema.fields || {}).map(([name, field]) => ({
     name,
-    label: field.label || name,
-    type: field.type || "string",
-    required: field.required || false,
-    options: field.options,
-    description: field.description,
-    placeholder: field.placeholder
+    label: (field as SchemaField).label || name,
+    type: (field as SchemaField).type || "string",
+    required: (field as SchemaField).required || false,
+    options: (field as SchemaField).options || [],
+    description: (field as SchemaField).description || "",
+    placeholder: (field as SchemaField).placeholder,
+    section: (field as SchemaField).section || "",
+    order: (field as SchemaField).order || 0
   }));
   
+  // Sort fields by order
+  const sortByOrder = (a: FormField, b: FormField) => {
+    const orderA = a.order || 0;
+    const orderB = b.order || 0;
+    return orderA - orderB;
+  };
+
+  fields.sort(sortByOrder);
+
+  // Sort fields by section
+  const sortBySection = (o: Record<string, FormField[]>) => {
+    const sections = Object.keys(o);
+    return sections.sort();
+  };
+
+  // Helper function to check if object is empty
+  const isEmpty = (o: Record<string, unknown>) => {
+    return Object.keys(o).length === 0;
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>, targetSection: string) => {
+    event.preventDefault();
+    const data: string = event.dataTransfer.getData("text/plain");
+    try {
+      const parsedData = JSON.parse(data) as { type: string; field: FormField };
+      if (parsedData.type === "field") {
+        handleAddField(parsedData.field);
+      }
+    } catch (error) {
+      console.error("Error parsing dropped data:", error);
+    }
+  };
+
+  // Use the FieldPreview component defined above
+
+const renderFieldPreview = (field: FormField) => {
+  return (
+    <FieldPreview
+      key={field.name}
+      field={field}
+      onEdit={handleEditField}
+      onDelete={handleDeleteField}
+    />
+  );
+};
+
+  const renderFieldsByType = (type: string) => {
+    return fields
+      .filter(field => field.type === type)
+      .map(renderFieldPreview);
+  };
+
+  const renderFieldsBySection = (section: string) => {
+    return fields
+      .filter(field => field.section === section)
+      .map(renderFieldPreview);
+  };
+
+  // Group fields by section if available
+  const sections = fields.reduce<string[]>((acc, field) => {
+    if (field.section && !acc.includes(field.section)) {
+      acc.push(field.section);
+    }
+    return acc;
+  }, []);
+
+  // Get all field types for grouping
+  const fieldTypes = fields.reduce<string[]>((acc, field) => {
+    if (!acc.includes(field.type)) {
+      acc.push(field.type);
+    }
+    return acc;
+  }, []);
+
+  const renderTabs = () => {
+    return (
+      <div className="flex border-b mb-4">
+        <button
+          type="button"
+          className={`px-4 py-2 ${activeTab === "editor" ? "border-b-2 border-primary" : ""}`}
+          onClick={() => setActiveTab("editor")}
+        >
+          Editor
+        </button>
+        <button
+          type="button"
+          className={`px-4 py-2 ${activeTab === "preview" ? "border-b-2 border-primary" : ""}`}
+          onClick={() => setActiveTab("preview")}
+        >
+          Preview
+        </button>
+      </div>
+    );
+  };
+
+  const renderFieldGroups = () => {
+    if (sections.length > 0) {
+      return sections.map(section => (
+        <div key={section} className="mb-6">
+          <h3 className="text-lg font-medium mb-2">{section}</h3>
+          <div className="space-y-2">
+            {renderFieldsBySection(section)}
+          </div>
+        </div>
+      ));
+    }
+
+    if (fieldTypes.length > 0) {
+      return fieldTypes.map(type => (
+        <div key={type} className="mb-6">
+          <h3 className="text-lg font-medium mb-2">{type.charAt(0).toUpperCase() + type.slice(1)} Fields</h3>
+          <div className="space-y-2">
+            {renderFieldsByType(type)}
+          </div>
+        </div>
+      ));
+    }
+
+    return fields.map(renderFieldPreview);
+  };
+
   return (
     <div className="h-full flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">

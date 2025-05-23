@@ -1,9 +1,9 @@
-import { useSchemaState } from "../hooks/useSchemaState";
+import { useSchemaState } from "../hooks/useSchemaState.js";
 import { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { safeValidateViewSchema } from "@repo/view/engine/validation/schema";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Button } from "@repo/design-system/components/ui/button";
+import { Card } from "@repo/design-system/components/ui/card";
 
 // Dynamically import Monaco Editor to avoid SSR issues
 const MonacoEditor = dynamic(() => import("react-monaco-editor"), { ssr: false });

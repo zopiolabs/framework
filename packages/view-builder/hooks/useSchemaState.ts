@@ -1,6 +1,14 @@
-// Using relative imports to avoid module resolution issues
-import * as React from "react";
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+// Import React directly to use JSX
+import React from "react";
+
+// Import React hooks directly
+const createContext = React.createContext;
+const useContext = React.useContext;
+const useState = React.useState;
+const useCallback = React.useCallback;
+const createElement = React.createElement;
+
+type ReactNode = React.ReactNode;
 
 // Define ViewSchema type locally to avoid import issues
 interface ViewSchema {
@@ -125,6 +133,8 @@ export interface FormField {
   options?: string[];
   description?: string;
   placeholder?: string;
+  section?: string;
+  order?: number;
   validation?: {
     min?: number;
     max?: number;
@@ -191,12 +201,22 @@ const defaultContextValue: SchemaContextType = {
 const SchemaContext = createContext<SchemaContextType>(defaultContextValue);
 
 /**
- * Schema Provider component for managing view schema state
+ * Schema Provider Component
+ * @param props - Component props
+ * @returns Schema Provider Component
  */
 export function SchemaProvider(props: { children: ReactNode }): JSX.Element {
-  const { children } = props;
-  const [schema, setSchema] = useState<ViewSchema>(initialSchema);
-  
+  // Initialize schema state
+  const [schema, setSchema] = useState<ViewSchema>({
+    type: "form",
+    schema: "",
+    fields: {},
+    i18nNamespace: "forms",
+    submitLabel: "Submit",
+    resetLabel: "Reset",
+    showReset: true
+  });
+
   /**
    * Add a new field to the schema
    */
@@ -369,13 +389,13 @@ export function SchemaProvider(props: { children: ReactNode }): JSX.Element {
     getViewList
   };
   
-  // Return provider with context value using createElement instead of JSX
-  // to avoid syntax errors
+  // Use React.createElement for better compatibility
+  // Cast to JSX.Element to resolve type compatibility issues
   return React.createElement(
     SchemaContext.Provider,
     { value: contextValue },
-    children
-  );
+    props.children
+  ) as unknown as JSX.Element;
 }
 
 /**

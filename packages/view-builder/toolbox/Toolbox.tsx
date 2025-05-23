@@ -1,5 +1,5 @@
-import { useSchemaState } from "../hooks/useSchemaState";
-import { Button } from "@/components/ui/button";
+import { useSchemaState } from "../hooks/useSchemaState.js";
+import { Button } from "@repo/design-system/components/ui/button";
 import { useEffect, useState } from "react";
 
 const predefinedFields = [
@@ -14,14 +14,14 @@ export function Toolbox() {
 
   useEffect(() => {
     getViewList().then(setViews);
-  }, []);
+  }, [getViewList]);
 
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-semibold">Toolbox</h3>
-      {predefinedFields.map((field, i) => (
+      {predefinedFields.map((field) => (
         <Button
-          key={i}
+          key={`${field.name}-${field.type}`}
           variant="outline"
           className="w-full justify-start"
           onClick={() =>

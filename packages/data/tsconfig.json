@@ -8,8 +8,7 @@
     "paths": {
       "@repo/data-base": ["./base"],
       "@repo/data-providers": ["./providers"],
-      "@repo/data-providers/*": ["./providers/*"],
-      "@repo/data-ui": ["./ui"]
+      "@repo/data-providers/*": ["./providers/*"]
     }
   },
   "include": [
