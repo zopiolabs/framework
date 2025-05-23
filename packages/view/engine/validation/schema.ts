@@ -1,190 +1,138 @@
 import { z } from "zod";
-import type { 
-  ViewSchema, 
-  FormViewSchema, 
-  TableViewSchema, 
-  DetailViewSchema, 
-  AuditLogViewSchema, 
-  ImportViewSchema, 
-  ExportViewSchema 
-} from '../renderers/types';
+import type { ViewSchema } from "../renderers/types";
 
-/**
- * Common fields for all view schemas
- */
-const commonViewFields = {
-  id: z.string(),
-  title: z.string().optional(),
-  description: z.string().optional(),
-  i18nNamespace: z.string().optional(),
-  metadata: z.record(z.any()).optional(),
-};
-
-/**
- * Form field definition schema
- */
-const formFieldSchema = z.object({
-  name: z.string(),
+// Field definition schema
+const fieldDefinitionSchema = z.object({
   label: z.string().optional(),
-  type: z.string(),
+  type: z.string().optional(),
   required: z.boolean().optional(),
-  defaultValue: z.any().optional(),
+  options: z.array(z.string()).optional(),
+  hidden: z.union([z.boolean(), z.function()]).optional(),
+  readOnly: z.union([z.boolean(), z.function()]).optional(),
+  description: z.string().optional(),
   placeholder: z.string().optional(),
-  helpText: z.string().optional(),
-  options: z.array(
-    z.object({
-      label: z.string(),
-      value: z.any(),
-    })
-  ).optional(),
-  validation: z.record(z.any()).optional(),
-  disabled: z.boolean().optional(),
-  hidden: z.boolean().optional(),
-  width: z.union([z.string(), z.number()]).optional(),
-  className: z.string().optional(),
-});
-
-/**
- * Form layout schema
- */
-const formLayoutSchema = z.object({
-  type: z.enum(['grid', 'tabs', 'sections', 'wizard']),
-  config: z.record(z.any()).optional(),
-}).optional();
-
-/**
- * Table column schema
- */
-const tableColumnSchema = z.object({
-  key: z.string(),
-  header: z.string().optional(),
-  width: z.union([z.string(), z.number()]).optional(),
-  sortable: z.boolean().optional(),
-  filterable: z.boolean().optional(),
-  hidden: z.boolean().optional(),
-  className: z.string().optional(),
-  render: z.any().optional(), // Function reference can't be validated by Zod
-});
-
-/**
- * Pagination schema
- */
-const paginationSchema = z.object({
-  enabled: z.boolean().optional(),
-  pageSize: z.number().optional(),
-  pageSizeOptions: z.array(z.number()).optional(),
-}).optional();
-
-/**
- * Sort schema
- */
-const sortSchema = z.object({
-  key: z.string(),
-  direction: z.enum(['asc', 'desc']),
-}).optional();
-
-/**
- * Action schema
- */
-const actionSchema = z.object({
-  id: z.string(),
-  label: z.string(),
-  icon: z.string().optional(),
-  variant: z.string().optional(),
-  disabled: z.boolean().optional(),
-  hidden: z.boolean().optional(),
-  confirm: z.object({
-    title: z.string().optional(),
+  validation: z.object({
+    min: z.number().optional(),
+    max: z.number().optional(),
+    pattern: z.string().optional(),
     message: z.string().optional(),
-    confirmText: z.string().optional(),
-    cancelText: z.string().optional(),
   }).optional(),
 });
 
-/**
- * Form view schema validation
- */
-const formViewSchema = z.object({
-  ...commonViewFields,
-  type: z.literal('form'),
-  schema: z.record(z.any()),
-  fields: z.array(formFieldSchema).optional(),
-  layout: formLayoutSchema,
-  submitLabel: z.string().optional(),
+// Field definitions schema
+const fieldDefinitionsSchema = z.record(z.string(), fieldDefinitionSchema);
+
+// Form section schema
+const formSectionSchema = z.object({
+  title: z.string().optional(),
+  description: z.string().optional(),
+  fields: z.array(z.string()),
+  columns: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
+});
+
+// Form tab schema
+const formTabSchema = z.object({
+  title: z.string(),
+  sections: z.array(formSectionSchema),
+});
+
+// Form layout schema
+const formLayoutSchema = z.object({
+  tabs: z.array(formTabSchema).optional(),
+  sections: z.array(formSectionSchema).optional(),
+});
+
+// Base view schema
+const baseViewSchema = z.object({
+  schema: z.string(),
+  fields: fieldDefinitionsSchema.optional(),
+  i18nNamespace: z.string().optional(),
+});
+
+// Form view schema
+const formViewSchema = baseViewSchema.extend({
+  type: z.literal("form"),
+  layout: formLayoutSchema.optional(),
+  submitAction: z.string().optional(),
   resetLabel: z.string().optional(),
+  submitLabel: z.string().optional(),
   showReset: z.boolean().optional(),
 });
 
-/**
- * Table view schema validation
- */
-const tableViewSchema = z.object({
-  ...commonViewFields,
-  type: z.literal('table'),
-  schema: z.record(z.any()),
-  columns: z.array(tableColumnSchema).optional(),
-  pagination: paginationSchema,
-  defaultSort: sortSchema,
-  rowActions: z.array(actionSchema).optional(),
-  bulkActions: z.array(actionSchema).optional(),
+// Table column schema
+const tableColumnSchema = z.object({
+  key: z.string(),
+  title: z.string(),
+  width: z.union([z.number(), z.string()]).optional(),
+  sortable: z.boolean().optional(),
+  filterable: z.boolean().optional(),
+  hidden: z.boolean().optional(),
+  render: z.string().optional(),
+});
+
+// Table view schema
+const tableViewSchema = baseViewSchema.extend({
+  type: z.literal("table"),
+  columns: z.array(tableColumnSchema),
+  pagination: z.object({
+    defaultPageSize: z.number().optional(),
+    pageSizeOptions: z.array(z.number()).optional(),
+  }).optional(),
+  defaultSort: z.object({
+    column: z.string(),
+    direction: z.union([z.literal("asc"), z.literal("desc")]),
+  }).optional(),
+  rowActions: z.array(z.string()).optional(),
+  bulkActions: z.array(z.string()).optional(),
   selectable: z.boolean().optional(),
 });
 
-/**
- * Detail view schema validation
- */
-const detailViewSchema = z.object({
-  ...commonViewFields,
-  type: z.literal('detail'),
-  schema: z.record(z.any()),
-  fields: z.array(formFieldSchema).optional(),
-  layout: formLayoutSchema,
-  actions: z.array(actionSchema).optional(),
+// Detail view schema
+const detailViewSchema = baseViewSchema.extend({
+  type: z.literal("detail"),
+  layout: formLayoutSchema.optional(),
+  actions: z.array(z.string()).optional(),
 });
 
-/**
- * Audit log view schema validation
- */
-const auditLogViewSchema = z.object({
-  ...commonViewFields,
-  type: z.literal('audit-log'),
-  schema: z.record(z.any()),
+// Audit log view schema
+const auditLogViewSchema = baseViewSchema.extend({
+  type: z.literal("audit-log"),
   entityIdField: z.string().optional(),
   showUser: z.boolean().optional(),
   showTimestamp: z.boolean().optional(),
   showAction: z.boolean().optional(),
 });
 
-/**
- * Import view schema validation
- */
-const importViewSchema = z.object({
-  ...commonViewFields,
-  type: z.literal('import'),
-  schema: z.record(z.any()),
+// Import view schema
+const importViewSchema = baseViewSchema.extend({
+  type: z.literal("import"),
   fileTypes: z.array(z.string()).optional(),
   maxFileSize: z.number().optional(),
   templateUrl: z.string().optional(),
   instructions: z.string().optional(),
 });
 
-/**
- * Export view schema validation
- */
-const exportViewSchema = z.object({
-  ...commonViewFields,
-  type: z.literal('export'),
-  schema: z.record(z.any()),
-  formats: z.array(z.string()).optional(),
-  defaultFormat: z.string().optional(),
+// Export view schema
+const exportViewSchema = baseViewSchema.extend({
+  type: z.literal("export"),
+  formats: z.array(z.union([
+    z.literal("csv"),
+    z.literal("xlsx"),
+    z.literal("json"),
+    z.literal("pdf")
+  ])).optional(),
+  defaultFormat: z.union([
+    z.literal("csv"),
+    z.literal("xlsx"),
+    z.literal("json"),
+    z.literal("pdf")
+  ]).optional(),
   includeHeaders: z.boolean().optional(),
   fileName: z.string().optional(),
 });
 
-/**
- * Combined view schema validation
- */
-const viewSchemaValidation = z.discriminatedUnion('type', [
+// Union of all view schemas
+const viewSchemaValidator = z.discriminatedUnion("type", [
   formViewSchema,
   tableViewSchema,
   detailViewSchema,
@@ -194,69 +142,35 @@ const viewSchemaValidation = z.discriminatedUnion('type', [
 ]);
 
 /**
- * Type guard for form view schema
- */
-export function isFormViewSchema(schema: ViewSchema): schema is FormViewSchema {
-  return schema.type === 'form';
-}
-
-/**
- * Type guard for table view schema
- */
-export function isTableViewSchema(schema: ViewSchema): schema is TableViewSchema {
-  return schema.type === 'table';
-}
-
-/**
- * Type guard for detail view schema
- */
-export function isDetailViewSchema(schema: ViewSchema): schema is DetailViewSchema {
-  return schema.type === 'detail';
-}
-
-/**
- * Type guard for audit log view schema
- */
-export function isAuditLogViewSchema(schema: ViewSchema): schema is AuditLogViewSchema {
-  return schema.type === 'audit-log';
-}
-
-/**
- * Type guard for import view schema
- */
-export function isImportViewSchema(schema: ViewSchema): schema is ImportViewSchema {
-  return schema.type === 'import';
-}
-
-/**
- * Type guard for export view schema
- */
-export function isExportViewSchema(schema: ViewSchema): schema is ExportViewSchema {
-  return schema.type === 'export';
-}
-
-/**
- * Validates a view schema and returns a validation result
+ * Validates a view schema against the schema definition
  * @param schema The view schema to validate
- * @returns A validation result with success flag and either the validated data or an error
+ * @returns A zod validation result
  */
-export function validateViewSchema(schema: ViewSchema) {
-  return viewSchemaValidation.safeParse(schema);
+export function validateViewSchema(schema: unknown): z.SafeParseReturnType<unknown, ViewSchema> {
+  return viewSchemaValidator.safeParse(schema);
 }
 
 /**
- * Safely validates a view schema and returns a validation result
- * This function catches any errors that might occur during validation
+ * Safe wrapper for validateViewSchema that returns a consistent result format
  * @param schema The view schema to validate
- * @returns A validation result with success flag and either the validated data or an error
+ * @returns An object with success flag and either the validated data or error
  */
-export function safeValidateViewSchema(schema: ViewSchema) {
-  try {
-    return validateViewSchema(schema);
-  } catch (error) {
+export function safeValidateViewSchema(schema: unknown): { 
+  success: boolean; 
+  data?: ViewSchema; 
+  error?: z.ZodError 
+} {
+  const result = validateViewSchema(schema);
+  
+  if (result.success) {
     return {
-      success: false,
-      error: error instanceof Error ? error : new Error('Unknown validation error'),
+      success: true,
+      data: result.data as ViewSchema,
     };
   }
+  
+  return {
+    success: false,
+    error: result.error,
+  };
 }

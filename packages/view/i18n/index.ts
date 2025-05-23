@@ -1,107 +1,230 @@
-import { useTranslations as useNextIntlTranslations } from 'next-intl';
+/**
+ * Type for translation function
+ */
+export type TranslationFunction = (key: string, params?: Record<string, string | number>) => string;
 
 /**
- * Type for translation parameters
+ * Default namespace for view-related translations
  */
-export type TranslationParams = Record<string, string | number | boolean | Date | null | undefined>;
+const DEFAULT_NAMESPACE = 'views';
 
 /**
- * Hook for using translations in view components
- * @param namespace Optional namespace for translations
- * @returns Translation function
+ * Global translation function that can be set by the application
  */
-export function useViewTranslations(namespace = 'view') {
-  // Use next-intl for translations
-  const nextIntlTranslate = useNextIntlTranslations(namespace);
+let globalTranslate: TranslationFunction | null = null;
+
+/**
+ * Set the global translation function
+ * @param translateFn The translation function to use
+ */
+export function setTranslationFunction(translateFn: TranslationFunction): void {
+  globalTranslate = translateFn;
+}
+
+/**
+ * Hook to access translations for view components
+ * @param namespace Optional custom namespace (defaults to 'views')
+ * @returns A translation function
+ */
+export function useViewTranslations(namespace?: string): TranslationFunction {
+  // Use the provided namespace or fall back to the default
+  const ns = namespace || DEFAULT_NAMESPACE;
   
-  /**
-   * Translate a key with optional parameters
-   * @param key Translation key
-   * @param params Optional parameters for the translation
-   * @param defaultValue Default value if the translation is not found
-   * @returns Translated string
-   */
-  const translate = (
-    key: string,
-    params?: TranslationParams,
-    defaultValue?: string
-  ): string => {
-    try {
-      // Try to get the translation from next-intl
-      return nextIntlTranslate(key, params as Record<string, unknown>);
-    } catch (error) {
-      // If the translation is not found, return the default value or the key
-      if (defaultValue !== undefined) {
-        return defaultValue;
+  // Return a translation function that uses the global translate function if available
+  // or falls back to returning the key as is
+  return (key: string, params?: Record<string, string | number>) => {
+    if (globalTranslate) {
+      try {
+        // Try to use the global translation function with the namespace
+        return globalTranslate(`${ns}.${key}`, params);
+      } catch (error) {
+        // If the translation is missing, return the key as fallback
+        console.warn(`Missing translation: ${ns}.${key}`);
+        return key;
       }
-      
-      // If no default value is provided, return the key
-      return key.split('.').pop() || key;
     }
+    
+    // If no global translation function is set, return the key as fallback
+    return key;
   };
-  
-  return translate;
 }
 
 /**
- * Server-side translation function
- * @param locale Locale to use for translation
- * @param namespace Namespace for translations
- * @param key Translation key
- * @param params Optional parameters for the translation
- * @param defaultValue Default value if the translation is not found
- * @returns Translated string
+ * Default translations for view components
+ * These can be overridden by providing translations in the application
  */
-export async function translateServer(
-  locale: string,
-  namespace: string,
-  key: string,
-  params?: TranslationParams,
-  defaultValue?: string
-): Promise<string> {
-  try {
-    // Import the messages for the locale and namespace
-    const messages = await import(`../../locales/${locale}/${namespace}.json`)
-      .then(module => module.default as Record<string, unknown>)
-      .catch(() => ({}) as Record<string, unknown>);
-    
-    // Get the translation using the key path
-    let translation = key.split('.').reduce<Record<string, unknown> | string | undefined>(
-      (obj, k) => (obj && typeof obj === 'object' ? (obj[k] as Record<string, unknown> | string | undefined) : undefined),
-      messages
-    );
-    
-    // If the translation is a string and params are provided, replace placeholders
-    if (typeof translation === 'string' && params) {
-      for (const [paramKey, paramValue] of Object.entries(params)) {
-        translation = translation.replace(
-          new RegExp(`{${paramKey}}`, 'g'),
-          String(paramValue ?? '')
-        );
-      }
+export const defaultViewTranslations = {
+  en: {
+    views: {
+      // Common
+      'loading': 'Loading...',
+      'error.title': 'Error',
+      'error.renderingFailed': 'An error occurred while rendering this view.',
+      'error.details': 'Error details',
+      
+      // Form
+      'form.submit': 'Submit',
+      'form.reset': 'Reset',
+      'form.required': 'Required',
+      'form.validation.required': 'This field is required',
+      'form.validation.min': 'Minimum value: {min}',
+      'form.validation.max': 'Maximum value: {max}',
+      'form.validation.pattern': 'Invalid format',
+      
+      // Table
+      'table.noData': 'No data available',
+      'table.pagination.prev': 'Previous',
+      'table.pagination.next': 'Next',
+      'table.pagination.rowsPerPage': 'Rows per page:',
+      'table.pagination.of': 'of',
+      'table.search': 'Search',
+      'table.filter': 'Filter',
+      
+      // Detail
+      'detail.back': 'Back',
+      'detail.edit': 'Edit',
+      'detail.delete': 'Delete',
+      
+      // Import/Export
+      'import.selectFile': 'Select file',
+      'import.dragDrop': 'Drag and drop a file here',
+      'import.upload': 'Upload',
+      'import.cancel': 'Cancel',
+      'export.download': 'Download',
+      'export.format': 'Format',
+    },
+  },
+  tr: {
+    views: {
+      // Common
+      'loading': 'Yükleniyor...',
+      'error.title': 'Hata',
+      'error.renderingFailed': 'Bu görünüm yüklenirken bir hata oluştu.',
+      'error.details': 'Hata detayları',
+      
+      // Form
+      'form.submit': 'Gönder',
+      'form.reset': 'Sıfırla',
+      'form.required': 'Zorunlu',
+      'form.validation.required': 'Bu alan zorunludur',
+      'form.validation.min': 'Minimum değer: {min}',
+      'form.validation.max': 'Maksimum değer: {max}',
+      'form.validation.pattern': 'Geçersiz format',
+      
+      // Table
+      'table.noData': 'Veri bulunamadı',
+      'table.pagination.prev': 'Önceki',
+      'table.pagination.next': 'Sonraki',
+      'table.pagination.rowsPerPage': 'Sayfa başına satır:',
+      'table.pagination.of': '/',
+      'table.search': 'Ara',
+      'table.filter': 'Filtrele',
+      
+      // Detail
+      'detail.back': 'Geri',
+      'detail.edit': 'Düzenle',
+      'detail.delete': 'Sil',
+      
+      // Import/Export
+      'import.selectFile': 'Dosya seç',
+      'import.dragDrop': 'Dosyayı buraya sürükleyin',
+      'import.upload': 'Yükle',
+      'import.cancel': 'İptal',
+      'export.download': 'İndir',
+      'export.format': 'Format',
+    },
+  },
+  es: {
+    views: {
+      // Common
+      'loading': 'Cargando...',
+      'error.title': 'Error',
+      'error.renderingFailed': 'Se produjo un error al renderizar esta vista.',
+      'error.details': 'Detalles del error',
+      
+      // Form
+      'form.submit': 'Enviar',
+      'form.reset': 'Restablecer',
+      'form.required': 'Obligatorio',
+      'form.validation.required': 'Este campo es obligatorio',
+      'form.validation.min': 'Valor mínimo: {min}',
+      'form.validation.max': 'Valor máximo: {max}',
+      'form.validation.pattern': 'Formato inválido',
+      
+      // Table
+      'table.noData': 'No hay datos disponibles',
+      'table.pagination.prev': 'Anterior',
+      'table.pagination.next': 'Siguiente',
+      'table.pagination.rowsPerPage': 'Filas por página:',
+      'table.pagination.of': 'de',
+      'table.search': 'Buscar',
+      'table.filter': 'Filtrar',
+      
+      // Detail
+      'detail.back': 'Atrás',
+      'detail.edit': 'Editar',
+      'detail.delete': 'Eliminar',
+      
+      // Import/Export
+      'import.selectFile': 'Seleccionar archivo',
+      'import.dragDrop': 'Arrastre y suelte un archivo aquí',
+      'import.upload': 'Subir',
+      'import.cancel': 'Cancelar',
+      'export.download': 'Descargar',
+      'export.format': 'Formato',
+    },
+  },
+  de: {
+    views: {
+      // Common
+      'loading': 'Wird geladen...',
+      'error.title': 'Fehler',
+      'error.renderingFailed': 'Beim Rendern dieser Ansicht ist ein Fehler aufgetreten.',
+      'error.details': 'Fehlerdetails',
+      
+      // Form
+      'form.submit': 'Absenden',
+      'form.reset': 'Zurücksetzen',
+      'form.required': 'Erforderlich',
+      'form.validation.required': 'Dieses Feld ist erforderlich',
+      'form.validation.min': 'Mindestwert: {min}',
+      'form.validation.max': 'Maximalwert: {max}',
+      'form.validation.pattern': 'Ungültiges Format',
+      
+      // Table
+      'table.noData': 'Keine Daten verfügbar',
+      'table.pagination.prev': 'Zurück',
+      'table.pagination.next': 'Weiter',
+      'table.pagination.rowsPerPage': 'Zeilen pro Seite:',
+      'table.pagination.of': 'von',
+      'table.search': 'Suchen',
+      'table.filter': 'Filtern',
+      
+      // Detail
+      'detail.back': 'Zurück',
+      'detail.edit': 'Bearbeiten',
+      'detail.delete': 'Löschen',
+      
+      // Import/Export
+      'import.selectFile': 'Datei auswählen',
+      'import.dragDrop': 'Datei hier ablegen',
+      'import.upload': 'Hochladen',
+      'import.cancel': 'Abbrechen',
+      'export.download': 'Herunterladen',
+      'export.format': 'Format',
+    },
+  },
+};
+
+/**
+ * Register view translations with the application's i18n system
+ * @param register Function to register translations
+ */
+export function registerViewTranslations(register: (namespace: string, translations: Record<string, unknown>) => void) {
+  // Register the default view translations for each locale
+  for (const [locale, namespaces] of Object.entries(defaultViewTranslations)) {
+    for (const [namespace, translations] of Object.entries(namespaces)) {
+      register(`${locale}.${namespace}`, translations);
     }
-    
-    // Return the translation or default value or key
-    return typeof translation === 'string'
-      ? translation
-      : defaultValue !== undefined
-      ? defaultValue
-      : key.split('.').pop() || key;
-  } catch (error) {
-    // If an error occurs, return the default value or the key
-    return defaultValue !== undefined
-      ? defaultValue
-      : key.split('.').pop() || key;
   }
-}
-
-/**
- * Get a translation function for a specific locale and namespace
- * @param locale Locale to use for translation
- * @param namespace Namespace for translations
- * @returns Translation function
- */
-export function getTranslator(locale: string, namespace = 'view') {
-  return (key: string, params?: TranslationParams, defaultValue?: string) =>
-    translateServer(locale, namespace, key, params, defaultValue);
 }
