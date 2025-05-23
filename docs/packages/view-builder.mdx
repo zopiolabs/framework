@@ -1,0 +1,298 @@
+---
+title: 'Overview'
+description: 'Visual interface for building schema-driven UI components'
+icon: 'wand-magic-sparkles'
+---
+
+# View Builder Package
+
+The `@repo/view-builder` package provides a visual interface for creating and editing view schemas used by the `@repo/view` package. It offers a drag-and-drop canvas, component toolbox, JSON editor, and AI-assisted schema generation.
+
+## Features
+
+- **Visual Builder**: Drag-and-drop interface for creating view schemas
+- **Live Preview**: Real-time preview of the view being created
+- **JSON Editor**: Direct editing of the underlying JSON schema
+- **AI Assistance**: AI-powered suggestions for view creation
+- **Schema Validation**: Automatic validation of view schemas
+- **Persistence**: Save and load view schemas
+- **Internationalization**: Support for multiple languages
+
+## Installation
+
+This package is part of the Zopio monorepo and is available to all applications in the workspace.
+
+```bash
+# If you're adding it to a new package in the monorepo
+pnpm add @repo/view-builder
+```
+
+## Package Structure
+
+The View Builder package is organized into several subpackages:
+
+- **Canvas**: Drag-and-drop interface for visual editing
+- **Toolbox**: Component palette for adding fields and elements
+- **JSON Editor**: Direct editing of the schema JSON
+- **AI**: AI-assisted schema generation
+- **Hooks**: React hooks for state management
+
+## Dependencies
+
+The View Builder package depends on the following packages:
+
+- **@repo/view**: For rendering and validating view schemas
+- **@repo/design-system**: For UI components
+- **@repo/crud**: For schema definitions and field types
+
+## Basic Usage
+
+### Using the View Builder Component
+
+```tsx
+import { ViewBuilder } from '@repo/view-builder';
+
+function MyViewBuilder() {
+  return (
+    <div className="h-screen">
+      <ViewBuilder />
+    </div>
+  );
+}
+```
+
+### Integrating with Custom Components
+
+```tsx
+import { SchemaProvider, useSchemaState } from '@repo/view-builder/hooks/useSchemaState';
+import { DragDropCanvas } from '@repo/view-builder/canvas/DragDropCanvas';
+import { Toolbox } from '@repo/view-builder/toolbox/Toolbox';
+import { JSONEditor } from '@repo/view-builder/json-editor/JSONEditor';
+
+function CustomViewBuilder() {
+  return (
+    <SchemaProvider>
+      <div className="grid grid-cols-12 gap-4 h-full">
+        <div className="col-span-3">
+          <Toolbox />
+        </div>
+        <div className="col-span-6">
+          <DragDropCanvas />
+        </div>
+        <div className="col-span-3">
+          <JSONEditor />
+        </div>
+      </div>
+    </SchemaProvider>
+  );
+}
+```
+
+### Using the Schema State Hook
+
+```tsx
+import { useSchemaState } from '@repo/view-builder/hooks/useSchemaState';
+
+function SchemaControls() {
+  const { schema, validateSchema, persistView, loadView } = useSchemaState();
+  
+  const handleSave = async () => {
+    const { valid } = validateSchema();
+    if (valid) {
+      const id = await persistView('my-view');
+      console.log(`Saved view with ID: ${id}`);
+    } else {
+      console.error('Schema validation failed');
+    }
+  };
+  
+  return (
+    <div>
+      <button onClick={handleSave}>Save Schema</button>
+      <button onClick={() => loadView('my-view')}>Load Schema</button>
+      <pre>{JSON.stringify(schema, null, 2)}</pre>
+    </div>
+  );
+}
+```
+
+## Core Components
+
+### DragDropCanvas
+
+The canvas component provides a visual interface for building views:
+
+```tsx
+import { DragDropCanvas } from '@repo/view-builder/canvas/DragDropCanvas';
+
+function MyCanvas() {
+  return <DragDropCanvas />;
+}
+```
+
+### Toolbox
+
+The toolbox component provides a palette of available components and fields:
+
+```tsx
+import { Toolbox } from '@repo/view-builder/toolbox/Toolbox';
+
+function MyToolbox() {
+  return <Toolbox />;
+}
+```
+
+### JSONEditor
+
+The JSON editor component allows direct editing of the schema JSON:
+
+```tsx
+import { JSONEditor } from '@repo/view-builder/json-editor/JSONEditor';
+
+function MyJSONEditor() {
+  return <JSONEditor />;
+}
+```
+
+### AIPromptPanel
+
+The AI prompt panel provides AI-assisted schema generation:
+
+```tsx
+import { AIPromptPanel } from '@repo/view-builder/ai/AIPromptPanel';
+
+function MyAIPanel() {
+  return <AIPromptPanel />;
+}
+```
+
+## Internationalization
+
+The View Builder package supports internationalization using the same locales as the View package:
+
+- English (en)
+- Turkish (tr)
+- Spanish (es)
+- German (de)
+
+## Integration with View Package
+
+The View Builder package is designed to work seamlessly with the View package:
+
+```tsx
+import { ViewBuilder } from '@repo/view-builder';
+import { renderView } from '@repo/view';
+import { useState } from 'react';
+
+function ViewBuilderWithPreview() {
+  const [schema, setSchema] = useState(null);
+  
+  const handleSchemaChange = (newSchema) => {
+    setSchema(newSchema);
+  };
+  
+  return (
+    <div className="grid grid-cols-2 gap-4 h-screen">
+      <div>
+        <ViewBuilder onChange={handleSchemaChange} />
+      </div>
+      <div className="border p-4 rounded-md">
+        {schema && renderView(schema)}
+      </div>
+    </div>
+  );
+}
+```
+
+## Error Handling
+
+The View Builder includes validation to prevent invalid schemas:
+
+```tsx
+import { useSchemaState } from '@repo/view-builder/hooks/useSchemaState';
+
+function SchemaValidator() {
+  const { validateSchema } = useSchemaState();
+  
+  const handleValidate = () => {
+    const { valid, errors } = validateSchema();
+    if (!valid) {
+      console.error('Schema validation failed:', errors);
+    }
+  };
+  
+  return <button onClick={handleValidate}>Validate Schema</button>;
+}
+```
+
+## Advanced Usage
+
+### Custom Field Types
+
+You can extend the View Builder with custom field types:
+
+```tsx
+import { Toolbox } from '@repo/view-builder/toolbox/Toolbox';
+
+const customFieldTypes = [
+  {
+    type: 'signature',
+    label: 'Signature Field',
+    icon: 'pen',
+    defaultProps: {
+      required: false,
+      width: 300,
+      height: 150
+    }
+  }
+];
+
+function CustomToolbox() {
+  return <Toolbox customFieldTypes={customFieldTypes} />;
+}
+```
+
+### Schema Templates
+
+You can provide predefined templates for common view types:
+
+```tsx
+import { useSchemaState } from '@repo/view-builder/hooks/useSchemaState';
+
+const templates = {
+  contactForm: {
+    type: 'form',
+    schema: 'contact',
+    fields: {
+      name: { label: 'Name', type: 'string', required: true },
+      email: { label: 'Email', type: 'string', required: true },
+      message: { label: 'Message', type: 'text', required: true }
+    }
+  },
+  userTable: {
+    type: 'table',
+    schema: 'user',
+    columns: [
+      { key: 'name', title: 'Name', sortable: true },
+      { key: 'email', title: 'Email', sortable: true },
+      { key: 'role', title: 'Role', filterable: true }
+    ]
+  }
+};
+
+function TemplateSelector() {
+  const { setSchema } = useSchemaState();
+  
+  return (
+    <div>
+      <h3>Templates</h3>
+      <button onClick={() => setSchema(templates.contactForm)}>Contact Form</button>
+      <button onClick={() => setSchema(templates.userTable)}>User Table</button>
+    </div>
+  );
+}
+```
+
+## Conclusion
+
+The View Builder package provides a powerful visual interface for creating and editing view schemas. It integrates seamlessly with the View package and supports a wide range of view types and field configurations.

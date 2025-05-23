@@ -1,0 +1,140 @@
+---
+title: 'Schema'
+description: 'Schema definitions and validation for view components'
+icon: 'table'
+---
+
+# View Schema
+
+The Schema module provides definitions and validation for view components, ensuring that all view schemas conform to the expected structure and types.
+
+## Overview
+
+The Schema module is responsible for:
+
+- Defining the structure of view schemas
+- Validating schemas against predefined rules
+- Providing type safety for schema operations
+- Converting between different schema formats
+
+## Schema Structure
+
+View schemas are defined using a consistent structure that supports various view types:
+
+```typescript
+interface ViewSchema {
+  /** Unique identifier for the view */
+  id: string;
+  /** Type of view (form, table, detail, etc.) */
+  type: ViewType;
+  /** Schema name for CRUD operations */
+  schema: string;
+  /** Fields to display in the view */
+  fields?: Record<string, FieldDefinition>;
+  /** Layout configuration */
+  layout?: LayoutConfiguration;
+  /** Internationalization namespace */
+  i18nNamespace?: string;
+  /** Additional configuration options */
+  options?: Record<string, unknown>;
+}
+```
+
+## Field Definitions
+
+Fields are defined with properties that control their appearance and behavior:
+
+```typescript
+interface FieldDefinition {
+  /** Display label for the field */
+  label?: string;
+  /** Field type (string, number, boolean, etc.) */
+  type?: string;
+  /** Whether the field is required */
+  required?: boolean;
+  /** Options for select fields */
+  options?: string[];
+  /** Whether the field is hidden */
+  hidden?: boolean | ((data: Record<string, unknown>) => boolean);
+  /** Whether the field is read-only */
+  readOnly?: boolean | ((data: Record<string, unknown>) => boolean);
+  /** Description text for the field */
+  description?: string;
+  /** Placeholder text for input fields */
+  placeholder?: string;
+  /** Validation rules for the field */
+  validation?: {
+    min?: number;
+    max?: number;
+    pattern?: string;
+    message?: string;
+  };
+}
+```
+
+## Schema Validation
+
+The Schema module uses Zod for runtime validation of schemas:
+
+```typescript
+import { validateViewSchema } from '@repo/view/schema';
+
+const result = validateViewSchema(mySchema);
+if (result.success) {
+  console.log('Schema is valid:', result.data);
+} else {
+  console.error('Schema validation failed:', result.error);
+}
+```
+
+## Schema Conversion
+
+The Schema module provides utilities for converting between different schema formats:
+
+```typescript
+import { convertLegacySchema } from '@repo/view/schema';
+
+// Convert a legacy array-based schema to the new record-based format
+const modernSchema = convertLegacySchema(legacySchema);
+```
+
+## Integration with CRUD
+
+The Schema module integrates with the CRUD package to ensure compatibility:
+
+```typescript
+import { createCrudSchemaFromViewSchema } from '@repo/view/schema';
+
+// Create a CRUD schema from a view schema
+const crudSchema = createCrudSchemaFromViewSchema(viewSchema);
+```
+
+## Internationalization
+
+The Schema module supports internationalization of schema definitions:
+
+```typescript
+import { createI18nSchema } from '@repo/view/schema';
+
+// Create an internationalized schema
+const i18nSchema = createI18nSchema(viewSchema, {
+  defaultLocale: 'en',
+  locales: ['en', 'tr', 'es', 'de']
+});
+```
+
+## Schema Extensions
+
+The Schema module supports extending schemas with custom properties:
+
+```typescript
+import { extendSchema } from '@repo/view/schema';
+
+// Extend a schema with custom properties
+const extendedSchema = extendSchema(viewSchema, {
+  customProperty: 'value',
+  customObject: {
+    nestedProperty: 'value'
+  }
+});
+```

@@ -1,0 +1,241 @@
+---
+title: 'Types'
+description: 'TypeScript type definitions for view components'
+icon: 'brackets-curly'
+---
+
+# View Types
+
+The Types module provides TypeScript type definitions for view components, ensuring type safety and consistency across the view system.
+
+## Overview
+
+The Types module is responsible for:
+
+- Defining TypeScript interfaces for view schemas
+- Providing type definitions for different view types
+- Ensuring type safety for view operations
+- Supporting TypeScript's static type checking
+
+## Core Types
+
+### ViewSchema
+
+The core `ViewSchema` interface defines the structure of all view schemas:
+
+```typescript
+interface ViewSchema {
+  /** Unique identifier for the view */
+  id: string;
+  /** Type of view (form, table, detail, etc.) */
+  type: ViewType;
+  /** Schema name for CRUD operations */
+  schema: string;
+  /** Fields to display in the view */
+  fields?: Record<string, FieldDefinition>;
+  /** Layout configuration */
+  layout?: LayoutConfiguration;
+  /** Internationalization namespace */
+  i18nNamespace?: string;
+  /** Additional configuration options */
+  options?: Record<string, unknown>;
+}
+```
+
+### ViewType
+
+The `ViewType` type defines the supported view types:
+
+```typescript
+type ViewType = 'form' | 'table' | 'detail' | 'audit' | 'import' | 'export' | 'dashboard' | 'wizard';
+```
+
+### FieldDefinition
+
+The `FieldDefinition` interface defines the structure of field definitions:
+
+```typescript
+interface FieldDefinition {
+  /** Display label for the field */
+  label?: string;
+  /** Field type (string, number, boolean, etc.) */
+  type?: string;
+  /** Whether the field is required */
+  required?: boolean;
+  /** Options for select fields */
+  options?: string[];
+  /** Whether the field is hidden */
+  hidden?: boolean | ((data: Record<string, unknown>) => boolean);
+  /** Whether the field is read-only */
+  readOnly?: boolean | ((data: Record<string, unknown>) => boolean);
+  /** Description text for the field */
+  description?: string;
+  /** Placeholder text for input fields */
+  placeholder?: string;
+  /** Validation rules for the field */
+  validation?: ValidationRules;
+}
+```
+
+## View-Specific Types
+
+### FormViewSchema
+
+The `FormViewSchema` interface defines the structure of form views:
+
+```typescript
+interface FormViewSchema extends ViewSchema {
+  type: 'form';
+  submitLabel?: string;
+  resetLabel?: string;
+  showReset?: boolean;
+  redirectUrl?: string;
+  onSubmitHook?: string;
+}
+```
+
+### TableViewSchema
+
+The `TableViewSchema` interface defines the structure of table views:
+
+```typescript
+interface TableViewSchema extends ViewSchema {
+  type: 'table';
+  columns?: Array<{
+    key: string;
+    title: string;
+    width?: number | string;
+    sortable?: boolean;
+    filterable?: boolean;
+    hidden?: boolean;
+    render?: string;
+  }>;
+  pagination?: {
+    defaultPageSize?: number;
+    pageSizeOptions?: number[];
+  };
+  defaultSort?: {
+    column: string;
+    direction: 'asc' | 'desc';
+  };
+  rowActions?: string[];
+  bulkActions?: string[];
+  selectable?: boolean;
+}
+```
+
+### DetailViewSchema
+
+The `DetailViewSchema` interface defines the structure of detail views:
+
+```typescript
+interface DetailViewSchema extends ViewSchema {
+  type: 'detail';
+  actions?: string[];
+}
+```
+
+## Layout Types
+
+### LayoutConfiguration
+
+The `LayoutConfiguration` interface defines the structure of layout configurations:
+
+```typescript
+interface LayoutConfiguration {
+  tabs?: Array<{
+    title: string;
+    sections: Section[];
+  }>;
+  sections?: Section[];
+}
+```
+
+### Section
+
+The `Section` interface defines the structure of layout sections:
+
+```typescript
+interface Section {
+  title?: string;
+  description?: string;
+  fields: string[];
+  columns?: 1 | 2 | 3 | 4;
+}
+```
+
+## Utility Types
+
+### ViewRenderOptions
+
+The `ViewRenderOptions` interface defines options for rendering views:
+
+```typescript
+interface ViewRenderOptions {
+  onSubmit?: (data: Record<string, unknown>) => void | Promise<void>;
+  onCancel?: () => void;
+  initialData?: Record<string, unknown>;
+  loading?: boolean;
+  error?: Error | null;
+  locale?: string;
+}
+```
+
+### ValidationRules
+
+The `ValidationRules` interface defines validation rules for fields:
+
+```typescript
+interface ValidationRules {
+  min?: number;
+  max?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  message?: string;
+}
+```
+
+## Type Guards
+
+The Types module provides type guards for checking view types:
+
+```typescript
+import { isFormView, isTableView, isDetailView } from '@repo/view/types';
+
+if (isFormView(schema)) {
+  // schema is a FormViewSchema
+  console.log(schema.submitLabel);
+}
+
+if (isTableView(schema)) {
+  // schema is a TableViewSchema
+  console.log(schema.columns);
+}
+
+if (isDetailView(schema)) {
+  // schema is a DetailViewSchema
+  console.log(schema.actions);
+}
+```
+
+## Type Utilities
+
+The Types module provides utility types for working with view schemas:
+
+```typescript
+import { 
+  FieldsOf, 
+  ViewSchemaWithoutFields, 
+  DeepPartial 
+} from '@repo/view/types';
+
+// Get the fields of a view schema
+type UserFields = FieldsOf<UserFormSchema>;
+
+// Create a partial view schema
+type PartialSchema = DeepPartial<ViewSchema>;
+
+// Create a view schema without fields
+type SchemaWithoutFields = ViewSchemaWithoutFields;
+```

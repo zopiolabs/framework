@@ -1,0 +1,166 @@
+---
+title: 'JSON Editor'
+description: 'Direct editing of view schema JSON'
+icon: 'code'
+---
+
+# JSON Editor Component
+
+The JSON Editor component provides a direct interface for editing the underlying JSON schema of a view. It offers syntax highlighting, validation, and auto-completion to help users edit schemas efficiently.
+
+## Features
+
+- **Syntax Highlighting**: Color-coded JSON for better readability
+- **Schema Validation**: Real-time validation against the view schema specification
+- **Auto-Completion**: Suggestions for schema properties and values
+- **Error Highlighting**: Visual indication of syntax and validation errors
+- **Format Controls**: Options to format, minify, and copy JSON
+
+## Basic Usage
+
+```tsx
+import { JSONEditor } from '@repo/view-builder/json-editor/JSONEditor';
+import { SchemaProvider } from '@repo/view-builder/hooks/useSchemaState';
+
+function MyJSONEditor() {
+  return (
+    <SchemaProvider>
+      <JSONEditor />
+    </SchemaProvider>
+  );
+}
+```
+
+## Editor Controls
+
+The JSON Editor includes the following controls:
+
+- **Format**: Format the JSON for better readability
+- **Validate**: Validate the JSON against the schema specification
+- **Copy**: Copy the JSON to the clipboard
+- **Reset**: Reset the JSON to the last valid state
+- **Apply**: Apply changes to the schema
+
+## Customization
+
+You can customize the editor appearance and behavior:
+
+```tsx
+<JSONEditor
+  theme="dark"
+  readOnly={false}
+  height="500px"
+  showLineNumbers={true}
+  formatOnPaste={true}
+/>
+```
+
+## Integration with Schema State
+
+The JSON Editor automatically syncs with the schema state:
+
+```tsx
+import { JSONEditor } from '@repo/view-builder/json-editor/JSONEditor';
+import { useSchemaState } from '@repo/view-builder/hooks/useSchemaState';
+
+function SchemaEditor() {
+  const { schema, setSchema } = useSchemaState();
+  
+  const handleChange = (newSchema) => {
+    setSchema(newSchema);
+  };
+  
+  return <JSONEditor value={schema} onChange={handleChange} />;
+}
+```
+
+## Advanced Usage
+
+### Custom Schema Validation
+
+You can provide custom validation rules:
+
+```tsx
+import { JSONEditor } from '@repo/view-builder/json-editor/JSONEditor';
+
+const customValidationRules = [
+  {
+    rule: (schema) => schema.fields && Object.keys(schema.fields).length > 0,
+    message: 'Schema must contain at least one field'
+  },
+  {
+    rule: (schema) => schema.type === 'form' || schema.type === 'table' || schema.type === 'detail',
+    message: 'Schema type must be one of: form, table, detail'
+  }
+];
+
+function ValidatedEditor() {
+  return <JSONEditor validationRules={customValidationRules} />;
+}
+```
+
+### Schema Templates
+
+You can provide predefined schema templates:
+
+```tsx
+import { JSONEditor } from '@repo/view-builder/json-editor/JSONEditor';
+
+const schemaTemplates = {
+  emptyForm: {
+    type: 'form',
+    schema: 'user',
+    fields: {}
+  },
+  emptyTable: {
+    type: 'table',
+    schema: 'user',
+    columns: []
+  },
+  emptyDetail: {
+    type: 'detail',
+    schema: 'user',
+    sections: []
+  }
+};
+
+function TemplatedEditor() {
+  return <JSONEditor templates={schemaTemplates} />;
+}
+```
+
+### Custom Actions
+
+You can add custom actions to the editor:
+
+```tsx
+import { JSONEditor } from '@repo/view-builder/json-editor/JSONEditor';
+
+const customActions = [
+  {
+    label: 'Generate Types',
+    icon: 'code',
+    action: (schema) => {
+      // Generate TypeScript types from schema
+      console.log('Generating types for schema:', schema);
+    }
+  },
+  {
+    label: 'Export to File',
+    icon: 'download',
+    action: (schema) => {
+      // Export schema to file
+      const blob = new Blob([JSON.stringify(schema, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'schema.json';
+      a.click();
+    }
+  }
+];
+
+function ActionableEditor() {
+  return <JSONEditor customActions={customActions} />;
+}
+```

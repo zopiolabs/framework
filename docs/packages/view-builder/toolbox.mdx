@@ -1,0 +1,188 @@
+---
+title: 'Toolbox'
+description: 'Component palette for adding fields and elements to views'
+icon: 'toolbox'
+---
+
+# Toolbox Component
+
+The Toolbox component provides a palette of available components and fields that can be added to the canvas. It organizes field types into categories and allows for easy drag-and-drop functionality.
+
+## Features
+
+- **Categorized Components**: Fields organized by type and function
+- **Drag-and-Drop Support**: Easy addition of components to the canvas
+- **Search Functionality**: Quick search for specific field types
+- **Custom Components**: Support for custom field types
+- **Responsive Design**: Adapts to different screen sizes
+
+## Basic Usage
+
+```tsx
+import { Toolbox } from '@repo/view-builder/toolbox/Toolbox';
+import { SchemaProvider } from '@repo/view-builder/hooks/useSchemaState';
+
+function MyToolbox() {
+  return (
+    <SchemaProvider>
+      <Toolbox />
+    </SchemaProvider>
+  );
+}
+```
+
+## Field Categories
+
+The toolbox organizes fields into the following categories:
+
+- **Basic Fields**: Text, Number, Checkbox, Date, etc.
+- **Advanced Fields**: Rich Text, File Upload, Rating, etc.
+- **Layout Components**: Sections, Tabs, Dividers, etc.
+- **Custom Fields**: User-defined field types
+
+## Component Structure
+
+Each component in the toolbox includes:
+
+- **Icon**: Visual representation of the field type
+- **Label**: Name of the field type
+- **Description**: Brief explanation of the field's purpose
+- **Drag Handle**: Element for dragging the field to the canvas
+
+## Customization
+
+You can customize the toolbox appearance and behavior:
+
+```tsx
+<Toolbox
+  theme="dark"
+  showDescriptions={true}
+  categories={['basic', 'advanced', 'layout']}
+  searchEnabled={true}
+/>
+```
+
+## Adding Custom Field Types
+
+You can extend the toolbox with custom field types:
+
+```tsx
+import { Toolbox } from '@repo/view-builder/toolbox/Toolbox';
+
+const customFieldTypes = [
+  {
+    type: 'signature',
+    label: 'Signature Field',
+    category: 'advanced',
+    icon: 'pen',
+    description: 'Field for capturing signatures',
+    defaultProps: {
+      required: false,
+      width: 300,
+      height: 150
+    }
+  },
+  {
+    type: 'rating',
+    label: 'Rating Field',
+    category: 'advanced',
+    icon: 'star',
+    description: 'Field for capturing ratings',
+    defaultProps: {
+      required: false,
+      maxRating: 5
+    }
+  }
+];
+
+function CustomToolbox() {
+  return <Toolbox customFieldTypes={customFieldTypes} />;
+}
+```
+
+## Integration with Canvas
+
+The toolbox works seamlessly with the Canvas component:
+
+```tsx
+import { DragDropCanvas } from '@repo/view-builder/canvas/DragDropCanvas';
+import { Toolbox } from '@repo/view-builder/toolbox/Toolbox';
+import { SchemaProvider } from '@repo/view-builder/hooks/useSchemaState';
+
+function BuilderInterface() {
+  return (
+    <SchemaProvider>
+      <div className="grid grid-cols-4 gap-4">
+        <div className="col-span-1">
+          <Toolbox />
+        </div>
+        <div className="col-span-3">
+          <DragDropCanvas />
+        </div>
+      </div>
+    </SchemaProvider>
+  );
+}
+```
+
+## Advanced Usage
+
+### Field Templates
+
+You can provide predefined field templates:
+
+```tsx
+import { Toolbox } from '@repo/view-builder/toolbox/Toolbox';
+
+const fieldTemplates = {
+  emailField: {
+    type: 'string',
+    label: 'Email Address',
+    required: true,
+    validation: {
+      pattern: '^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$',
+      message: 'Please enter a valid email address'
+    }
+  },
+  phoneField: {
+    type: 'string',
+    label: 'Phone Number',
+    required: true,
+    validation: {
+      pattern: '^\\+?[0-9]{10,15}$',
+      message: 'Please enter a valid phone number'
+    }
+  }
+};
+
+function TemplatedToolbox() {
+  return <Toolbox fieldTemplates={fieldTemplates} />;
+}
+```
+
+### Category Customization
+
+You can customize the categories displayed in the toolbox:
+
+```tsx
+import { Toolbox } from '@repo/view-builder/toolbox/Toolbox';
+
+const customCategories = [
+  {
+    id: 'personal',
+    label: 'Personal Information',
+    icon: 'user',
+    fields: ['name', 'email', 'phone', 'address']
+  },
+  {
+    id: 'payment',
+    label: 'Payment Information',
+    icon: 'credit-card',
+    fields: ['cardNumber', 'expiryDate', 'cvv', 'billingAddress']
+  }
+];
+
+function CategorizedToolbox() {
+  return <Toolbox categories={customCategories} />;
+}
+```

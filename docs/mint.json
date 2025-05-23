@@ -235,10 +235,23 @@
           "pages": [
             "packages/view",
             "packages/view/engine",
-            "packages/view/designer",
             "packages/view/hooks",
             "packages/view/service",
-            "packages/view/i18n"
+            "packages/view/i18n",
+            "packages/view/schema",
+            "packages/view/types"
+          ]
+        },
+        {
+          "group": "View Builder",
+          "icon": "wand-magic-sparkles",
+          "pages": [
+            "packages/view-builder",
+            "packages/view-builder/canvas",
+            "packages/view-builder/toolbox",
+            "packages/view-builder/json-editor",
+            "packages/view-builder/ai",
+            "packages/view-builder/hooks"
           ]
         },
         {

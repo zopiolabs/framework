@@ -1,0 +1,160 @@
+---
+title: 'AI Assistant'
+description: 'AI-powered suggestions for view creation'
+icon: 'robot'
+---
+
+# AI Assistant Component
+
+The AI Assistant component provides AI-powered suggestions for creating and improving view schemas. It allows users to describe their desired view in natural language and generates corresponding schema definitions.
+
+## Features
+
+- **Natural Language Interface**: Create views by describing them in plain language
+- **Schema Generation**: Convert descriptions into valid view schemas
+- **Field Suggestions**: Intelligent suggestions for field types and properties
+- **Layout Recommendations**: Suggestions for optimal layout organization
+- **Internationalization Support**: Generate schemas with i18n support
+
+## Basic Usage
+
+```tsx
+import { AIPromptPanel } from '@repo/view-builder/ai/AIPromptPanel';
+import { SchemaProvider } from '@repo/view-builder/hooks/useSchemaState';
+
+function MyAIAssistant() {
+  return (
+    <SchemaProvider>
+      <AIPromptPanel />
+    </SchemaProvider>
+  );
+}
+```
+
+## Prompt Examples
+
+The AI Assistant understands various types of prompts:
+
+- **Create a form for user registration with name, email, and password fields**
+- **Build a table view for displaying products with columns for name, price, and inventory**
+- **Generate a detail view for customer information with contact details and order history**
+- **Add validation to all required fields in this form**
+- **Organize these fields into logical sections**
+
+## Customization
+
+You can customize the AI Assistant appearance and behavior:
+
+```tsx
+<AIPromptPanel
+  theme="light"
+  placeholderText="Describe your view here..."
+  suggestedPrompts={[
+    "Create a login form",
+    "Build a product catalog table",
+    "Generate a user profile view"
+  ]}
+  maxTokens={1000}
+/>
+```
+
+## Integration with Schema State
+
+The AI Assistant automatically updates the schema state:
+
+```tsx
+import { AIPromptPanel } from '@repo/view-builder/ai/AIPromptPanel';
+import { useSchemaState } from '@repo/view-builder/hooks/useSchemaState';
+
+function AISchemaGenerator() {
+  const { setSchema } = useSchemaState();
+  
+  const handleSchemaGenerated = (newSchema) => {
+    setSchema(newSchema);
+  };
+  
+  return <AIPromptPanel onSchemaGenerated={handleSchemaGenerated} />;
+}
+```
+
+## Advanced Usage
+
+### Custom Prompt Templates
+
+You can provide custom prompt templates:
+
+```tsx
+import { AIPromptPanel } from '@repo/view-builder/ai/AIPromptPanel';
+
+const promptTemplates = [
+  {
+    name: 'Contact Form',
+    prompt: 'Create a contact form with name, email, subject, and message fields. Add appropriate validation for each field.'
+  },
+  {
+    name: 'Product Table',
+    prompt: 'Build a table for managing products with columns for ID, name, category, price, and inventory. Include sorting and filtering options.'
+  },
+  {
+    name: 'User Profile',
+    prompt: 'Generate a detail view for user profiles with sections for personal information, contact details, and account settings.'
+  }
+];
+
+function TemplatedAIPanel() {
+  return <AIPromptPanel promptTemplates={promptTemplates} />;
+}
+```
+
+### Schema Enhancement
+
+You can use the AI Assistant to enhance existing schemas:
+
+```tsx
+import { AIPromptPanel } from '@repo/view-builder/ai/AIPromptPanel';
+import { useSchemaState } from '@repo/view-builder/hooks/useSchemaState';
+
+function SchemaEnhancer() {
+  const { schema, setSchema } = useSchemaState();
+  
+  const handleEnhance = async (enhancementPrompt) => {
+    // Example: "Add validation to all fields" or "Organize fields into sections"
+    const enhancedSchema = await enhanceSchemaWithAI(schema, enhancementPrompt);
+    setSchema(enhancedSchema);
+  };
+  
+  return (
+    <div>
+      <h3>Enhance Schema</h3>
+      <AIPromptPanel 
+        mode="enhance" 
+        existingSchema={schema} 
+        onSchemaGenerated={setSchema}
+        suggestedPrompts={[
+          "Add validation to all fields",
+          "Organize fields into logical sections",
+          "Add internationalization support"
+        ]}
+      />
+    </div>
+  );
+}
+```
+
+### Multilingual Support
+
+The AI Assistant supports generating schemas with internationalization:
+
+```tsx
+import { AIPromptPanel } from '@repo/view-builder/ai/AIPromptPanel';
+
+function MultilingualAIPanel() {
+  return (
+    <AIPromptPanel 
+      i18nSupport={true}
+      supportedLocales={['en', 'tr', 'es', 'de']}
+      defaultLocale="en"
+    />
+  );
+}
+```

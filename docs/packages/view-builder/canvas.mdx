@@ -1,0 +1,170 @@
+---
+title: 'Canvas'
+description: 'Drag-and-drop interface for visual view building'
+icon: 'grip'
+---
+
+# Canvas Component
+
+The Canvas component provides a drag-and-drop interface for visually building view schemas. It allows users to add, edit, and arrange fields and components in a visual editor.
+
+## Features
+
+- **Drag-and-Drop Interface**: Intuitive interface for adding and arranging fields
+- **Live Preview**: Real-time preview of the view being created
+- **Field Editing**: In-place editing of field properties
+- **Section Management**: Group fields into logical sections
+- **Responsive Layout**: Supports different layout configurations
+
+## Basic Usage
+
+```tsx
+import { DragDropCanvas } from '@repo/view-builder/canvas/DragDropCanvas';
+import { SchemaProvider } from '@repo/view-builder/hooks/useSchemaState';
+
+function MyCanvas() {
+  return (
+    <SchemaProvider>
+      <DragDropCanvas />
+    </SchemaProvider>
+  );
+}
+```
+
+## Components
+
+### FieldPreview
+
+The `FieldPreview` component displays a preview of a field in the canvas:
+
+```tsx
+<FieldPreview 
+  field={field}
+  onEdit={handleEditField}
+  onDelete={handleDeleteField}
+/>
+```
+
+### FieldEditor
+
+The `FieldEditor` component provides an interface for editing field properties:
+
+```tsx
+<FieldEditor
+  field={selectedField}
+  onSave={handleSaveField}
+  onCancel={handleCancelEdit}
+/>
+```
+
+### ViewPreview
+
+The `ViewPreview` component renders a live preview of the current view schema:
+
+```tsx
+<ViewPreview schema={schema} />
+```
+
+## Canvas Modes
+
+The canvas supports different modes for different view types:
+
+- **Form Mode**: For building form views
+- **Table Mode**: For building table views
+- **Detail Mode**: For building detail views
+
+## Keyboard Shortcuts
+
+The canvas supports the following keyboard shortcuts:
+
+- **Delete**: Remove the selected field
+- **Ctrl+Z**: Undo the last action
+- **Ctrl+Y**: Redo the last action
+- **Ctrl+S**: Save the current schema
+
+## Customization
+
+You can customize the canvas appearance and behavior:
+
+```tsx
+<DragDropCanvas
+  theme="light"
+  showPreview={true}
+  allowSections={true}
+  maxColumns={4}
+/>
+```
+
+## Integration with Other Components
+
+The canvas works seamlessly with other View Builder components:
+
+```tsx
+import { DragDropCanvas } from '@repo/view-builder/canvas/DragDropCanvas';
+import { Toolbox } from '@repo/view-builder/toolbox/Toolbox';
+import { SchemaProvider } from '@repo/view-builder/hooks/useSchemaState';
+
+function BuilderInterface() {
+  return (
+    <SchemaProvider>
+      <div className="grid grid-cols-4 gap-4">
+        <div className="col-span-1">
+          <Toolbox />
+        </div>
+        <div className="col-span-3">
+          <DragDropCanvas />
+        </div>
+      </div>
+    </SchemaProvider>
+  );
+}
+```
+
+## Advanced Usage
+
+### Custom Field Renderers
+
+You can provide custom renderers for specific field types:
+
+```tsx
+import { DragDropCanvas } from '@repo/view-builder/canvas/DragDropCanvas';
+
+const customRenderers = {
+  signature: (field) => (
+    <div className="signature-field">
+      <div className="signature-area" style={{ width: field.width, height: field.height }} />
+    </div>
+  )
+};
+
+function CustomCanvas() {
+  return <DragDropCanvas customRenderers={customRenderers} />;
+}
+```
+
+### Layout Templates
+
+You can provide predefined layout templates:
+
+```tsx
+import { DragDropCanvas } from '@repo/view-builder/canvas/DragDropCanvas';
+
+const layoutTemplates = {
+  twoColumn: {
+    sections: [
+      { title: 'Basic Information', columns: 2, fields: [] },
+      { title: 'Additional Information', columns: 2, fields: [] }
+    ]
+  },
+  tabbed: {
+    tabs: [
+      { title: 'General', sections: [{ fields: [] }] },
+      { title: 'Details', sections: [{ fields: [] }] }
+    ]
+  }
+};
+
+function TemplatedCanvas() {
+  return <DragDropCanvas layoutTemplates={layoutTemplates} />;
+}
+```

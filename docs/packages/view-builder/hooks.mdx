@@ -1,0 +1,280 @@
+---
+title: 'Hooks'
+description: 'React hooks for schema state management'
+icon: 'link'
+---
+
+# Schema State Hooks
+
+The View Builder package provides React hooks for managing view schema state. These hooks enable components to access and modify the schema, validate it, and persist it to storage.
+
+## Features
+
+- **Centralized State Management**: Single source of truth for schema data
+- **Schema Validation**: Validate schemas against specifications
+- **Persistence**: Save and load schemas from storage
+- **Field Management**: Add, update, and remove fields
+- **Type Safety**: TypeScript definitions for all schema types
+
+## useSchemaState Hook
+
+The `useSchemaState` hook provides access to the schema state and operations:
+
+```tsx
+import { useSchemaState } from '@repo/view-builder/hooks/useSchemaState';
+
+function SchemaManager() {
+  const { 
+    schema,
+    setSchema,
+    addField,
+    updateField,
+    removeField,
+    validateSchema,
+    persistView,
+    loadView,
+    deleteView,
+    getViewList
+  } = useSchemaState();
+  
+  // Use schema state and operations
+  return (
+    <div>
+      <h3>Current Schema</h3>
+      <pre>{JSON.stringify(schema, null, 2)}</pre>
+    </div>
+  );
+}
+```
+
+## SchemaProvider Component
+
+The `SchemaProvider` component provides the schema state context to its children:
+
+```tsx
+import { SchemaProvider } from '@repo/view-builder/hooks/useSchemaState';
+
+function ViewBuilderApp() {
+  return (
+    <SchemaProvider>
+      {/* Components that need access to schema state */}
+    </SchemaProvider>
+  );
+}
+```
+
+## Schema Operations
+
+### Adding a Field
+
+```tsx
+const { addField } = useSchemaState();
+
+const handleAddField = () => {
+  addField({
+    name: 'email',
+    label: 'Email Address',
+    type: 'string',
+    required: true,
+    validation: {
+      pattern: '^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$',
+      message: 'Please enter a valid email address'
+    }
+  });
+};
+```
+
+### Updating a Field
+
+```tsx
+const { updateField } = useSchemaState();
+
+const handleUpdateField = () => {
+  updateField('email', {
+    label: 'Contact Email',
+    required: false
+  });
+};
+```
+
+### Removing a Field
+
+```tsx
+const { removeField } = useSchemaState();
+
+const handleRemoveField = () => {
+  removeField('email');
+};
+```
+
+### Validating the Schema
+
+```tsx
+const { validateSchema } = useSchemaState();
+
+const handleValidate = () => {
+  const { valid, errors } = validateSchema();
+  if (!valid) {
+    console.error('Schema validation failed:', errors);
+  } else {
+    console.log('Schema is valid');
+  }
+};
+```
+
+### Persisting the Schema
+
+```tsx
+const { persistView } = useSchemaState();
+
+const handleSave = async () => {
+  try {
+    const id = await persistView('my-view');
+    console.log(`Saved view with ID: ${id}`);
+  } catch (error) {
+    console.error('Failed to save view:', error);
+  }
+};
+```
+
+### Loading a Schema
+
+```tsx
+const { loadView } = useSchemaState();
+
+const handleLoad = async () => {
+  try {
+    const success = await loadView('my-view');
+    if (success) {
+      console.log('Loaded view successfully');
+    } else {
+      console.error('Failed to load view');
+    }
+  } catch (error) {
+    console.error('Error loading view:', error);
+  }
+};
+```
+
+## Advanced Usage
+
+### Custom Initial Schema
+
+You can provide a custom initial schema to the provider:
+
+```tsx
+import { SchemaProvider } from '@repo/view-builder/hooks/useSchemaState';
+
+const customInitialSchema = {
+  type: 'form',
+  schema: 'product',
+  fields: {
+    name: {
+      label: 'Product Name',
+      type: 'string',
+      required: true
+    },
+    price: {
+      label: 'Price',
+      type: 'number',
+      required: true
+    }
+  }
+};
+
+function CustomSchemaApp() {
+  return (
+    <SchemaProvider initialSchema={customInitialSchema}>
+      {/* Components that need access to schema state */}
+    </SchemaProvider>
+  );
+}
+```
+
+### Custom Storage Provider
+
+You can provide a custom storage provider:
+
+```tsx
+import { SchemaProvider } from '@repo/view-builder/hooks/useSchemaState';
+
+const customStorageProvider = {
+  saveView: async (id, schema) => {
+    // Custom implementation for saving views
+    await fetch(`/api/views/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(schema)
+    });
+    return id;
+  },
+  getView: async (id) => {
+    // Custom implementation for getting views
+    const response = await fetch(`/api/views/${id}`);
+    return response.json();
+  },
+  listViews: async () => {
+    // Custom implementation for listing views
+    const response = await fetch('/api/views');
+    const views = await response.json();
+    return views.map(view => view.id);
+  },
+  deleteView: async (id) => {
+    // Custom implementation for deleting views
+    await fetch(`/api/views/${id}`, { method: 'DELETE' });
+  }
+};
+
+function CustomStorageApp() {
+  return (
+    <SchemaProvider storageProvider={customStorageProvider}>
+      {/* Components that need access to schema state */}
+    </SchemaProvider>
+  );
+}
+```
+
+### Schema History
+
+You can implement undo/redo functionality:
+
+```tsx
+import { useSchemaState } from '@repo/view-builder/hooks/useSchemaState';
+import { useState } from 'react';
+
+function SchemaHistoryManager() {
+  const { schema, setSchema } = useSchemaState();
+  const [history, setHistory] = useState([schema]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  
+  const handleSchemaChange = (newSchema) => {
+    // Add new schema to history
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(newSchema);
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+    setSchema(newSchema);
+  };
+  
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      setHistoryIndex(historyIndex - 1);
+      setSchema(history[historyIndex - 1]);
+    }
+  };
+  
+  const handleRedo = () => {
+    if (historyIndex < history.length - 1) {
+      setHistoryIndex(historyIndex + 1);
+      setSchema(history[historyIndex + 1]);
+    }
+  };
+  
+  return (
+    <div>
+      <button onClick={handleUndo} disabled={historyIndex === 0}>Undo</button>
+      <button onClick={handleRedo} disabled={historyIndex === history.length - 1}>Redo</button>
+    </div>
+  );
+}
+```

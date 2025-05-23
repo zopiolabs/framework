@@ -6,7 +6,7 @@ icon: 'eye'
 
 # View Package
 
-The `@repo/view` package provides a schema-driven approach to building UI components with integrated CRUD functionality, internationalization support, and error handling.
+The `@repo/view` package provides a schema-driven approach to building UI components with integrated CRUD functionality, internationalization support, and error handling. It enables developers to define complex UI components using JSON schemas, with full type safety and validation.
 
 ## Features
 
@@ -16,7 +16,7 @@ The `@repo/view` package provides a schema-driven approach to building UI compon
 - **Internationalization**: Built-in support for multiple languages
 - **Error Handling**: Comprehensive error handling with custom error boundaries
 - **Persistence**: Storage providers for both client and server-side persistence
-- **Designer**: Visual designer for creating and editing view schemas
+- **Extensible**: Plugin system for custom field types and renderers
 
 ## Installation
 
@@ -32,17 +32,20 @@ pnpm add @repo/view
 The View package is organized into several subpackages:
 
 - **Engine**: Core view rendering functionality
-- **Designer**: Visual designer for creating and editing view schemas
 - **Hooks**: React hooks for view operations
 - **Service**: Storage and persistence for view schemas
 - **i18n**: Internationalization support
+- **Schema**: Schema definitions and validation
+- **Types**: TypeScript type definitions
 
 ## Dependencies
 
 The View package depends on the following packages:
 
 - **@repo/crud**: For CRUD operations and UI components
+- **@repo/design-system**: For UI components
 - **next-intl**: Internationalization support
+- **zod**: Schema validation
 
 ## Basic Usage
 
@@ -56,20 +59,18 @@ const formSchema: ViewSchema = {
   id: 'user-form',
   type: 'form',
   schema: 'user',
-  fields: [
-    {
-      name: 'name',
+  fields: {
+    name: {
       label: 'Name',
       type: 'string',
       required: true
     },
-    {
-      name: 'email',
+    email: {
       label: 'Email',
       type: 'string',
       required: true
     }
-  ]
+  }
 };
 
 // Render the view
@@ -82,28 +83,30 @@ function UserForm() {
 }
 ```
 
-### Using the View Designer
+### Using View Hooks
 
 ```tsx
-import { ViewDesigner } from '@repo/view';
+import { useView } from '@repo/view/hooks';
 
-function MyDesigner() {
-  const [schema, setSchema] = useState(initialSchema);
+function UserFormContainer() {
+  const { view, loading, error } = useView('user-form');
   
-  return (
-    <ViewDesigner
-      value={schema}
-      onChange={setSchema}
-      availableSchemas={['user', 'product', 'order']}
-    />
-  );
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+  if (!view) return <div>View not found</div>;
+  
+  return renderView(view, {
+    onSubmit: (data) => {
+      console.log('Form submitted:', data);
+    }
+  });
 }
 ```
 
 ### Persisting View Schemas
 
 ```tsx
-import { initViewService, saveView, getView } from '@repo/view';
+import { initViewService, saveView, getView } from '@repo/view/service';
 
 // Initialize with local storage
 initViewService({ type: 'local', storagePrefix: 'my-app' });
@@ -125,13 +128,15 @@ The package supports the following view types:
 - **Audit Log**: For displaying audit logs
 - **Import**: For importing data
 - **Export**: For exporting data
+- **Dashboard**: For displaying multiple views in a dashboard layout
+- **Wizard**: For multi-step forms and processes
 
 ## Internationalization
 
 The View package supports internationalization using next-intl:
 
 ```tsx
-import { useViewTranslations } from '@repo/view';
+import { useViewTranslations } from '@repo/view/i18n';
 
 function MyComponent() {
   const t = useViewTranslations('view');
@@ -157,7 +162,7 @@ function MyComponent() {
 The package includes a comprehensive error handling system:
 
 ```tsx
-import { ViewErrorBoundary } from '@repo/view';
+import { ViewErrorBoundary } from '@repo/view/engine/error';
 
 function MyComponent() {
   return (
@@ -168,12 +173,40 @@ function MyComponent() {
 }
 ```
 
+## Integration with View Builder
+
+The View package is designed to work seamlessly with the [View Builder](/packages/view-builder) package, which provides a visual interface for creating and editing view schemas:
+
+```tsx
+import { ViewBuilder } from '@repo/view-builder';
+import { renderView } from '@repo/view';
+import { useState } from 'react';
+
+function ViewBuilderWithPreview() {
+  const [schema, setSchema] = useState(null);
+  
+  const handleSchemaChange = (newSchema) => {
+    setSchema(newSchema);
+  };
+  
+  return (
+    <div className="grid grid-cols-2 gap-4 h-screen">
+      <div>
+        <ViewBuilder onChange={handleSchemaChange} />
+      </div>
+      <div className="border p-4 rounded-md">
+        {schema && renderView(schema)}
+      </div>
+    </div>
+  );
+}
+```
+
 ## Detailed Documentation
 
 For more detailed information on using the View package, see the following pages:
 
 - [Engine](/packages/view/engine) - Core view rendering functionality
-- [Designer](/packages/view/designer) - Visual designer for creating view schemas
 - [Hooks](/packages/view/hooks) - React hooks for view operations
 - [Service](/packages/view/service) - Storage and persistence for view schemas
 - [Internationalization](/packages/view/i18n) - Internationalization support
@@ -193,7 +226,11 @@ interface ViewSchema {
   /** Schema name for CRUD operations */
   schema: string;
   /** Fields to display in the view */
-  fields?: ViewField[];
+  fields?: Record<string, FieldDefinition>;
+  /** Layout configuration */
+  layout?: LayoutConfiguration;
+  /** Internationalization namespace */
+  i18nNamespace?: string;
   /** Additional configuration options */
   options?: Record<string, unknown>;
 }
